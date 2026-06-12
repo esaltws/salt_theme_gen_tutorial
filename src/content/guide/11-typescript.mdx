@@ -1,0 +1,480 @@
+---
+title: TypeScript Integration
+description: Complete type reference, strict mode patterns, and TypeScript-first usage for salt-theme-gen in any project.
+order: 11
+pain: You use the theme object but autocomplete stops working, you cast with `as any` to silence errors, or you write your own types that drift out of sync with the library. The type system becomes an obstacle instead of a tool.
+---
+
+## All exported types
+
+`salt-theme-gen` ships a complete TypeScript type surface. Every type is exported from the package root:
+
+```ts
+import type {
+  // Top-level
+  GeneratedTheme,
+  GeneratedThemeMode,
+
+  // Color
+  SemanticColors,
+  IntentName,
+  StateName,
+  IntentStates,
+  IntentStateColors,
+
+  // Surfaces and scales
+  SurfaceElevation,
+  SpacingScale,
+  RadiusScale,
+  FontSizeScale,
+  SpacingKey,
+  RadiusKey,
+  FontSizeKey,
+
+  // Accessibility
+  AccessibilityReport,
+  AccessibilityEntry,
+
+  // Options
+  ThemeOptions,
+  PresetName,
+  ColorHarmony,
+  SpacingPreset,
+  RadiusPreset,
+  FontSizePreset,
+
+  // Diff and parse
+  ThemeDiff,
+  ModeDiff,
+  TokenDiff,
+  ParseResult,
+} from 'salt-theme-gen';
+```
+
+You rarely need all of these. The three you will use most are `GeneratedTheme`, `GeneratedThemeMode`, and `ThemeOptions`.
+
+---
+
+## Core types
+
+### GeneratedTheme
+
+The return type of `generateTheme()` and `adjustTheme()`:
+
+```ts
+interface GeneratedTheme {
+  light: GeneratedThemeMode;
+  dark:  GeneratedThemeMode;
+}
+```
+
+### GeneratedThemeMode
+
+One mode — light or dark. The shape of `theme.light` and `theme.dark`:
+
+```ts
+interface GeneratedThemeMode {
+  colors:           SemanticColors;
+  states:           IntentStates;
+  surfaceElevation: SurfaceElevation;
+  spacing:          SpacingScale;
+  radius:           RadiusScale;
+  fontSizes:        FontSizeScale;
+  accessibility:    AccessibilityReport;
+}
+```
+
+### SemanticColors
+
+All 21 color tokens as a typed record:
+
+```ts
+interface SemanticColors {
+  primary:     string;
+  secondary:   string;
+  tertiary:    string;
+  quaternary:  string;
+  background:  string;
+  surface:     string;
+  text:        string;
+  muted:       string;
+  border:      string;
+  danger:      string;
+  success:     string;
+  warning:     string;
+  info:        string;
+  onPrimary:   string;
+  onSecondary: string;
+  onTertiary:  string;
+  onQuaternary:string;
+  onDanger:    string;
+  onSuccess:   string;
+  onWarning:   string;
+  onInfo:      string;
+}
+```
+
+### IntentStates
+
+The 32 state colors as a nested record:
+
+```ts
+type IntentName = 'primary' | 'secondary' | 'tertiary' | 'quaternary'
+                | 'danger'  | 'success'   | 'warning'  | 'info';
+
+type StateName  = 'hover' | 'pressed' | 'focused' | 'disabled';
+
+type IntentStateColors = Record<StateName, string>;
+type IntentStates      = Record<IntentName, IntentStateColors>;
+```
+
+### ThemeOptions
+
+The input type for `generateTheme()`:
+
+```ts
+interface ThemeOptions {
+  preset?:        PresetName;
+  primary?:       string;          // hex color — alternative to preset
+  spacing?:       SpacingPreset;   // 'compact' | 'default' | 'spacious'
+  radius?:        RadiusPreset;    // 'none' | 'sm' | 'default' | 'lg' | 'pill'
+  fontSize?:      FontSizePreset;  // 'small' | 'default' | 'large'
+  colorHarmony?:  ColorHarmony;    // 'complementary' | 'analogous' | 'triadic' | 'split-complementary'
+  silent?:        boolean;         // suppress console.warn for auto-corrections
+}
+```
+
+`preset` and `primary` are mutually exclusive — passing both is a type error.
+
+### PresetName
+
+The union of all valid preset strings:
+
+```ts
+type PresetName =
+  | 'peacock' | 'ocean'     | 'forest'    | 'sunset'
+  | 'cherry-blossom'        | 'arctic'    | 'desert'
+  | 'lavender'| 'emerald'   | 'coral-reef'| 'midnight'
+  | 'autumn'  | 'rose-gold' | 'sapphire'  | 'mint'
+  | 'volcano' | 'twilight'  | 'honey'     | 'storm'
+  | 'aurora';
+```
+
+---
+
+## Typing theme consumers
+
+### Accepting a mode as a prop
+
+When a component receives a theme mode (light or dark), type it as `GeneratedThemeMode`:
+
+```ts
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+interface ButtonProps {
+  label:    string;
+  intent?:  'primary' | 'danger';
+  theme:    GeneratedThemeMode;
+}
+
+function Button({ label, intent = 'primary', theme }: ButtonProps) {
+  return (
+    <button style={{
+      backgroundColor: theme.colors[intent],
+      color:           theme.colors[`on${capitalize(intent)}`],
+      borderRadius:    `${theme.radius.md}px`,
+    }}>
+      {label}
+    </button>
+  );
+}
+```
+
+### A theme context
+
+Sharing the full theme through React context:
+
+```ts
+import { createContext, useContext } from 'react';
+import type { GeneratedTheme } from 'salt-theme-gen';
+
+const ThemeContext = createContext<GeneratedTheme | null>(null);
+
+function useTheme(): GeneratedTheme {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
+  return ctx;
+}
+
+// In a component
+function Card() {
+  const theme = useTheme();
+  const mode  = theme.light; // or derive from user preference
+
+  return (
+    <div style={{
+      background:   mode.surfaceElevation.card,
+      borderRadius: `${mode.radius.lg}px`,
+      padding:      `${mode.spacing.xl}px`,
+    }}>
+      ...
+    </div>
+  );
+}
+```
+
+---
+
+## Typing intent-based components
+
+Using `IntentName` to type intent-driven props:
+
+```ts
+import type { GeneratedThemeMode, IntentName } from 'salt-theme-gen';
+
+interface BadgeProps {
+  label:   string;
+  intent:  IntentName;
+  mode:    GeneratedThemeMode;
+}
+
+function Badge({ label, intent, mode }: BadgeProps) {
+  const bg    = mode.colors[intent];
+  const color = mode.colors[`on${intent.charAt(0).toUpperCase()}${intent.slice(1)}` as keyof typeof mode.colors];
+
+  return <span style={{ background: bg, color }}>{label}</span>;
+}
+
+// TypeScript enforces valid intents — no 'purpl' typos
+<Badge intent="danger" label="Error" mode={theme.light} />
+<Badge intent="success" label="Saved" mode={theme.light} />
+```
+
+---
+
+## Typing state-driven styles
+
+Using `StateName` to build accessible interactive styles:
+
+```ts
+import type { GeneratedThemeMode, IntentName, StateName } from 'salt-theme-gen';
+
+function getStateColor(
+  mode:   GeneratedThemeMode,
+  intent: IntentName,
+  state:  StateName,
+): string {
+  return mode.states[intent][state];
+}
+
+// Fully typed — TypeScript catches invalid state names
+getStateColor(theme.light, 'primary', 'hover');    // ✓
+getStateColor(theme.light, 'danger',  'pressed');  // ✓
+getStateColor(theme.light, 'primary', 'clicking'); // ✗ type error
+```
+
+---
+
+## Typing the accessibility report
+
+Iterating the report with full type safety:
+
+```ts
+import type { AccessibilityReport, AccessibilityEntry } from 'salt-theme-gen';
+
+function auditTheme(report: AccessibilityReport): void {
+  const entries = Object.entries(report) as [string, AccessibilityEntry][];
+
+  const failures = entries.filter(([, e]) => e.level === 'FAIL');
+  const aaa      = entries.filter(([, e]) => e.level === 'AAA');
+
+  console.log(`AAA: ${aaa.length}/18 checks`);
+  console.log(`Failures: ${failures.length}/18 checks`);
+
+  for (const [check, entry] of failures) {
+    console.warn(`FAIL: ${check} — ratio ${entry.ratio.toFixed(1)}`);
+  }
+}
+```
+
+---
+
+## Typing adjustTheme overrides
+
+`adjustTheme()` accepts a `DeepPartial<GeneratedTheme>`. You can write the override type explicitly when building override objects:
+
+```ts
+import type { GeneratedTheme } from 'salt-theme-gen';
+
+type DeepPartialTheme = {
+  light?: Partial<{
+    colors:          Partial<GeneratedTheme['light']['colors']>;
+    spacing:         Partial<GeneratedTheme['light']['spacing']>;
+    radius:          Partial<GeneratedTheme['light']['radius']>;
+    fontSizes:       Partial<GeneratedTheme['light']['fontSizes']>;
+    surfaceElevation:Partial<GeneratedTheme['light']['surfaceElevation']>;
+  }>;
+  dark?: Partial<{
+    colors:          Partial<GeneratedTheme['dark']['colors']>;
+    spacing:         Partial<GeneratedTheme['dark']['spacing']>;
+    // ...
+  }>;
+};
+
+// Build overrides separately, typed
+const brandOverrides: DeepPartialTheme = {
+  light: {
+    colors:  { primary: 'oklch(0.52 0.20 218)' },
+    spacing: { md: 14 },
+  },
+  dark: {
+    colors:  { primary: 'oklch(0.68 0.20 218)' },
+    spacing: { md: 14 },
+  },
+};
+```
+
+---
+
+## Using ParseResult
+
+After `parseThemeJSON()`, TypeScript narrows the type correctly:
+
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+import type { ParseResult, GeneratedTheme } from 'salt-theme-gen';
+
+function loadTheme(raw: unknown): GeneratedTheme {
+  const result: ParseResult = parseThemeJSON(raw);
+
+  if (result.success) {
+    return result.theme; // GeneratedTheme — narrowed by TypeScript
+  }
+
+  throw new Error(result.errors.join('\n')); // string[] — narrowed by TypeScript
+}
+```
+
+The discriminated union means TypeScript knows `result.theme` only exists when `result.success === true`, and `result.errors` only exists when `result.success === false`. No casting needed.
+
+---
+
+## Strict mode patterns
+
+In a strict TypeScript project (`"strict": true` in `tsconfig.json`), a few patterns keep things clean:
+
+### Prefer `import type`
+
+```ts
+// Types are erased at compile time — always import as type
+import type { GeneratedTheme, GeneratedThemeMode } from 'salt-theme-gen';
+
+// Runtime functions — imported normally
+import { generateTheme, adjustTheme, diffTheme, parseThemeJSON } from 'salt-theme-gen';
+```
+
+### Narrow mode selection
+
+Rather than indexing `theme['light']` directly, a typed mode selector avoids string index errors:
+
+```ts
+type ThemeMode = 'light' | 'dark';
+
+function getMode(theme: GeneratedTheme, mode: ThemeMode): GeneratedThemeMode {
+  return theme[mode];
+}
+```
+
+### Exhaustive intent handling
+
+If you write a switch on `IntentName`, TypeScript can enforce exhaustiveness:
+
+```ts
+import type { IntentName } from 'salt-theme-gen';
+
+function intentLabel(intent: IntentName): string {
+  switch (intent) {
+    case 'primary':    return 'Primary';
+    case 'secondary':  return 'Secondary';
+    case 'tertiary':   return 'Tertiary';
+    case 'quaternary': return 'Quaternary';
+    case 'danger':     return 'Danger';
+    case 'success':    return 'Success';
+    case 'warning':    return 'Warning';
+    case 'info':       return 'Info';
+    default: {
+      const _exhaustive: never = intent;
+      throw new Error(`Unhandled intent: ${_exhaustive}`);
+    }
+  }
+}
+```
+
+If the library adds a new intent in a future version, this switch becomes a compile error — telling you exactly which call site needs updating.
+
+---
+
+## Module augmentation
+
+If you extend your theme with custom tokens (not recommended for most projects, but occasionally necessary), you can augment the types:
+
+```ts
+// types/salt-theme-gen.d.ts
+import 'salt-theme-gen';
+
+declare module 'salt-theme-gen' {
+  interface SemanticColors {
+    brand: string;       // custom token
+    accent: string;      // custom token
+  }
+}
+```
+
+After augmentation, `theme.light.colors.brand` is typed and autocompleted. Your custom tokens live in the same type as the generated ones.
+
+Note: augmenting the type does not add the token to `parseThemeJSON()` validation or `diffTheme()` tracking. For custom tokens you maintain those guarantees yourself.
+
+---
+
+## tsconfig recommendations
+
+For projects using `salt-theme-gen` with full strict type checking:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "moduleResolution": "bundler"
+  }
+}
+```
+
+`noUncheckedIndexedAccess` is the one that catches the most bugs with theme code — it forces you to handle the case where an object index might return `undefined`, which `Record<string, string>` lookups can do at runtime even when TypeScript says they can't.
+
+---
+
+## Completing the guide
+
+You now have the full picture:
+
+| Chapter | What you learned |
+| ------- | ---------------- |
+| 1 | The problem, OKLCH, and what one function call produces |
+| 2 | Install and first theme in 5 minutes |
+| 3 | Every field in GeneratedTheme — colors, states, scales, accessibility |
+| 4 | All 20 presets and custom hex input |
+| 5 | Spacing, radius, and font size scales — exact values and combinations |
+| 6 | The 18 WCAG checks, auto-correction, and accessible component patterns |
+| 7 | Color harmony strategies — how accents are derived |
+| 8 | adjustTheme() for post-generation precision |
+| 9 | diffTheme() for design audits and CI regression checks |
+| 10 | parseThemeJSON() for safe round-trips through storage and APIs |
+| **11** | **Full TypeScript type surface and strict patterns** |
+
+The **Integrations** section starts next — applying your theme in React, Next.js, Vue, Astro, SvelteKit, and every other platform. Each guide opens with the developer pain it solves and ends with a working StackBlitz demo.
+
+<div class="callout callout-tip">
+  <strong>You built this site.</strong> Every color, spacing value, and radius on this page is a <code>salt-theme-gen</code> token from the Ocean preset. Open DevTools, inspect <code>:root</code>, and you'll see every variable generated by the same <code>generateTheme(&#123; preset: 'ocean' &#125;)</code> call you've been reading about.
+</div>
