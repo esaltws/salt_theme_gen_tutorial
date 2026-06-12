@@ -485,7 +485,52 @@ Part N+1: [title and link]
 
 ---
 
-## 11. Success Metrics (3 months)
+## 11. Future Business Direction — Premium Services
+
+The tutorial and open-source library are the top of the funnel. Premium services are the eventual revenue layer. Every architectural decision made now should leave these doors open.
+
+### Planned premium tiers (future, not current scope)
+
+| Product | Description | Where it lives |
+| ------- | ----------- | -------------- |
+| **Interactive theme generator** | Web UI — pick a color, preview the full theme live, export tokens in multiple formats (CSS vars, JSON, Tailwind config, Dart, SCSS) | `esalt.net/generate` or `app.esalt.net` |
+| **Premium themes** | Curated, professionally designed presets beyond the 20 free nature presets — brand-grade color systems | `esalt.net/themes` |
+| **Theme studio** | Full design system builder — multi-brand, team sharing, version history, Figma sync | `app.esalt.net` |
+| **Premium MCP server** | Hosted MCP endpoint — AI assistants call it directly with rate-limited free tier + paid plans | `api.esalt.net/mcp` |
+| **White-label / agency tier** | Generate and export themes for client projects, custom branding | `esalt.net/agency` |
+
+### Architectural seams to preserve now
+
+The current tutorial build must not close off these paths. Specific decisions:
+
+#### 1. Playground stays independent
+
+The `/playground/` on `learn.esalt.net` is a read-only demo embed (StackBlitz). It intentionally does NOT become the premium tool — that lives on `esalt.net`. The playground is the teaser; the product is the destination.
+
+#### 2. Domain separation is intentional
+
+- `learn.esalt.net` — free education, always free
+- `esalt.net` — product + premium (current and future)
+- `app.esalt.net` — future SaaS dashboard (auth, teams, projects)
+
+Never mix the tutorial hub with the commercial product on the same subdomain.
+
+#### 3. Content CTAs baked in from day one
+
+Every integration guide and Dev.to article ends with a soft CTA toward the interactive generator once it exists. Write placeholder copy now, activate it when the product launches:
+> *"Want to preview your theme visually before writing code? Try the interactive generator at esalt.net →"*
+
+#### 4. The `llms.txt` and prompt templates are the free-tier MCP
+
+Position them as the free/DIY alternative to the future premium hosted MCP. This creates a natural upgrade path: use the prompts yourself → pay for the hosted tool that does it for you.
+
+#### 5. Email capture from launch
+
+Add an email capture (Resend or ConvertKit) to `learn.esalt.net` from day one — "Get notified when the interactive theme generator launches." Every tutorial reader is a potential premium customer. Build the list while building the audience.
+
+---
+
+## 12. Success Metrics (3 months)
 
 | Metric | Target |
 | ------ | ------ |
@@ -493,4 +538,5 @@ Part N+1: [title and link]
 | Dev.to cumulative article views | 5,000+ |
 | GitHub stars (salt-theme-gen) | 100+ |
 | learn.esalt.net unique visitors/month | 1,000+ |
+| Email list signups | 200+ |
 | Consulting inquiries via esalt.net | 2+/month |
