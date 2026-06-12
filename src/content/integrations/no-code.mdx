@@ -1,0 +1,542 @@
+---
+title: salt-theme-gen with No-Code Builders
+description: Use salt-theme-gen tokens in Bolt.new, Lovable, v0.dev, Framer, and Webflow — prompt templates, CSS variable injection, and design tool custom code blocks.
+framework: No-Code Builders
+pain: You built a beautiful mockup in Framer or prototyped an app in Bolt.new, but theming is a mess of hardcoded hex values spread across dozens of layers. Dark mode is a separate artboard you maintain by hand. Changing the brand color means finding every instance manually.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-vanilla
+---
+
+## How no-code builders fit
+
+No-code and AI-assisted builders sit on a spectrum. Some run real Node.js environments; others only accept CSS and HTML snippets. The integration strategy depends on where your builder sits:
+
+| Builder | Runs Node.js? | npm install? | Best approach |
+| ------- | ------------- | ------------ | ------------- |
+| **Bolt.new** | Yes (WebContainers) | Yes | Full npm install — same as any web project |
+| **Lovable** | Yes (AI-generated code) | Yes (via prompt) | Prompt template → AI writes the integration |
+| **v0.dev** | Yes (Next.js output) | Yes (via prompt) | Prompt template → export → add to Next.js project |
+| **Framer** | No | No | CSS variable block in Custom Code |
+| **Webflow** | No | No | `<style>` block in Site Settings → Custom Code |
+
+The CSS variable output from `salt-theme-gen` works everywhere. Even platforms that cannot run Node.js accept a paste of generated CSS.
+
+---
+
+## Bolt.new
+
+Bolt.new runs a full WebContainers environment — Node.js, npm, Vite, and the file system all work. The integration is identical to any Vite or Next.js project.
+
+### Prompt to paste into Bolt.new
+
+Paste this prompt into a new Bolt.new project or an existing one:
+
+```
+Install salt-theme-gen and wire up a full theme system:
+
+1. npm install salt-theme-gen
+
+2. Create src/theme.ts:
+   import { generateTheme } from 'salt-theme-gen';
+   export const theme = generateTheme({ preset: 'ocean', spacing: 'default', radius: 'default', fontSize: 'default' });
+
+3. In the entry file (main.ts or main.tsx), inject CSS variables into <head>:
+   - Use the theme.light and theme.dark objects
+   - Map every field in colors, surfaceElevation, spacing, radius, fontSizes, and states to CSS custom properties
+   - Colors: --color-{kebab(key)}: value
+   - Spacing: --space-{key}: {value}px
+   - Radius: --radius-{key}: {value}px
+   - Font sizes: --text-{key}: {value}px
+   - States: --state-{intent}-{state}: value
+   - Write :root { ... } for light and :root[data-theme="dark"] { ... } for dark
+
+4. Add a synchronous inline script before the CSS link that reads localStorage.getItem('theme') and sets data-theme on <html>. This prevents flash of wrong theme.
+
+5. Replace all hardcoded color values in the codebase with var(--color-*), var(--space-*), etc.
+
+Use the ocean preset for now. The token names follow the salt-theme-gen naming convention.
+```
+
+### Manual setup in Bolt.new
+
+If you prefer to write the code yourself, open the Bolt.new terminal and run:
+
+```bash
+npm install salt-theme-gen
+```
+
+Then create `src/theme.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+```
+
+Wire up CSS injection in your entry file — see the [Vanilla JS guide](/salt-theme-gen/integrations/vanilla-js/) for the complete injection function. The Bolt.new environment supports everything in that guide without modification.
+
+### Switching presets in Bolt.new
+
+Because Bolt.new has a real terminal, you can try different presets instantly:
+
+```ts
+// Change the preset argument and save — Vite hot-reloads
+export const theme = generateTheme({ preset: 'rose' });
+```
+
+Available presets: `ocean`, `slate`, `rose`, `violet`, `amber`, `emerald`, `ruby`, `cobalt`, `forest`, `sunset`, `arctic`, `copper`, `midnight`, `coral`, `sage`, `indigo`, `teal`, `gold`, `plum`, `crimson`.
+
+---
+
+## Lovable
+
+Lovable generates React + Tailwind projects powered by AI. You describe what you want; Lovable writes the code. The integration works by giving Lovable a precise prompt that describes the token system you want it to implement.
+
+### Initial project prompt
+
+When starting a new Lovable project, include this in your initial description:
+
+```
+Use salt-theme-gen for all colors, spacing, and typography. Do not hardcode any color values.
+
+Setup:
+- npm install salt-theme-gen
+- Create src/lib/theme.ts that calls generateTheme({ preset: 'ocean' })
+- Create src/lib/inject-theme.ts that converts the theme object to CSS custom properties and injects them into document.head
+- Call injectTheme() in main.tsx before the React root renders
+- Use CSS variables like var(--color-primary), var(--space-md), var(--text-lg) throughout all components
+
+Token naming:
+- Colors: var(--color-{name}) — primary, secondary, background, surface, text, muted, border, danger, success, warning, info, onPrimary, etc.
+- Spacing: var(--space-xs) through var(--space-xxl)  
+- Radius: var(--radius-sm) through var(--radius-pill)
+- Font sizes: var(--text-xs) through var(--text-3xl)
+- States: var(--state-primary-hover), var(--state-primary-pressed), etc.
+
+Dark mode via data-theme="dark" on <html>. A ThemeToggle button should toggle this attribute and persist preference in localStorage.
+```
+
+### Adding to an existing Lovable project
+
+For an existing project, use the chat interface:
+
+```
+Add salt-theme-gen for design tokens:
+
+1. Install: npm install salt-theme-gen
+2. Create src/lib/theme.ts with generateTheme({ preset: 'ocean' })
+3. In main.tsx, before ReactDOM.createRoot, inject CSS variables:
+   - light mode as :root { --color-primary: ...; ... }
+   - dark mode as :root[data-theme="dark"] { ... }
+4. Replace every hardcoded color in the project with the appropriate CSS variable
+5. Add a ThemeToggle component that toggles data-theme on document.documentElement
+
+Keep all existing functionality intact. Only replace hardcoded values — don't restructure components.
+```
+
+### Lovable + Tailwind
+
+Lovable projects use Tailwind by default. After Lovable installs `salt-theme-gen` and injects CSS variables, ask it to extend the Tailwind config:
+
+```
+Update tailwind.config.ts to use salt-theme-gen tokens as Tailwind colors and spacing:
+
+colors: {
+  primary: 'var(--color-primary)',
+  secondary: 'var(--color-secondary)',
+  background: 'var(--color-background)',
+  surface: 'var(--color-surface)',
+  text: 'var(--color-text)',
+  muted: 'var(--color-muted)',
+  border: 'var(--color-border)',
+  danger: 'var(--color-danger)',
+  success: 'var(--color-success)',
+  warning: 'var(--color-warning)',
+  info: 'var(--color-info)',
+}
+
+darkMode: ['attribute', '[data-theme="dark"]']
+
+This lets Tailwind classes like bg-primary, text-muted, border-border resolve to the token values.
+```
+
+---
+
+## v0.dev
+
+v0 generates React components (often with shadcn/ui and Tailwind). Its output is designed to be copied into an existing Next.js or Vite project. The integration is a two-step process: generate the component in v0, then add `salt-theme-gen` tokens to your project before importing the component.
+
+### Prompt for v0
+
+When generating a component, tell v0 which CSS variables to expect:
+
+```
+Build a [component description] using CSS custom properties for all colors and spacing. 
+Assume these variables are available globally:
+
+Colors: --color-primary, --color-secondary, --color-background, --color-surface, 
+--color-text, --color-muted, --color-border, --color-danger, --color-success, 
+--color-warning, --color-info, --color-on-primary, --color-on-danger, --color-on-success
+
+Spacing: --space-xs, --space-sm, --space-md, --space-lg, --space-xl, --space-xxl
+Radius: --radius-sm, --radius-md, --radius-lg, --radius-xl, --radius-pill
+Font sizes: --text-xs, --text-sm, --text-md, --text-lg, --text-xl, --text-xxl, --text-3xl
+States: --state-primary-hover, --state-primary-pressed, --state-primary-focused, --state-primary-disabled
+
+Do not use Tailwind color classes. Use CSS variables directly in inline styles or className strings with var(--...).
+```
+
+### Importing v0 output into a salt-theme-gen project
+
+After copying the v0 component into your project:
+
+1. Make sure your entry file already injects CSS variables via `salt-theme-gen` (see [Vanilla JS](/salt-theme-gen/integrations/vanilla-js/) or [React](/salt-theme-gen/integrations/react/) guides).
+2. The v0 component uses `var(--color-primary)` etc. — these resolve automatically once the variables are injected.
+3. Dark mode works via `data-theme="dark"` — no changes needed inside the v0 component.
+
+---
+
+## Framer
+
+Framer is a design-and-publish tool with a **Custom Code** feature that lets you inject HTML and CSS into the site's `<head>`. This is the integration point.
+
+### Step 1 — Generate your CSS
+
+Run this snippet locally (Node.js) to get the CSS you will paste into Framer:
+
+```js
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({ preset: 'ocean' });
+
+function kebab(str) {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeVars(mode) {
+  const lines = [];
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`  --color-${kebab(k)}: ${v};`);
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`  --surface-${k}: ${v};`);
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`  --space-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`  --radius-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`  --text-${k}: ${v}px;`);
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states))
+      lines.push(`  --state-${intent}-${state}: ${val};`);
+  return lines.join('\n');
+}
+
+const css = `
+:root {
+${modeVars(theme.light)}
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+${modeVars(theme.dark)}
+  }
+}
+`;
+
+console.log(css);
+```
+
+Copy the printed CSS.
+
+### Step 2 — Paste into Framer
+
+1. Open your Framer project
+2. Go to **Site Settings** → **General** → **Custom Code**
+3. Paste your CSS into the **`<head>` tag** section:
+
+```html
+<style>
+:root {
+  --color-primary: oklch(0.55 0.2 240);
+  --color-secondary: oklch(0.60 0.15 260);
+  /* ... all your generated tokens ... */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: oklch(0.65 0.18 240);
+    /* ... dark mode tokens ... */
+  }
+}
+</style>
+```
+
+### Step 3 — Use tokens in Framer
+
+In Framer's design panel, you can reference CSS variables directly in color fields using the syntax `var(--color-primary)`. For components with custom code:
+
+```tsx
+// Framer code component
+export default function TokenButton({ label = "Click me" }) {
+  return (
+    <button style={{
+      background:   'var(--color-primary)',
+      color:        'var(--color-on-primary)',
+      borderRadius: 'var(--radius-md)',
+      padding:      'var(--space-sm) var(--space-lg)',
+      fontSize:     'var(--text-md)',
+      fontWeight:   600,
+      border:       'none',
+      cursor:       'pointer',
+    }}>
+      {label}
+    </button>
+  );
+}
+```
+
+### Framer dark mode
+
+Framer doesn't expose `document.documentElement` for `data-theme` toggling. Use `@media (prefers-color-scheme: dark)` in your CSS block instead — it works with the OS setting automatically and requires no JavaScript.
+
+If you need a manual dark mode toggle inside a Framer code component:
+
+```tsx
+import { useState, useEffect } from 'react';
+
+export default function ThemeToggle() {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : '');
+  }, [isDark]);
+
+  return (
+    <button
+      onClick={() => setIsDark(d => !d)}
+      style={{
+        background: 'var(--color-surface)',
+        color: 'var(--color-text)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-xs) var(--space-sm)',
+        cursor: 'pointer',
+      }}
+    >
+      {isDark ? 'Light' : 'Dark'}
+    </button>
+  );
+}
+```
+
+Add `:root[data-theme="dark"] { ... }` alongside your `@media` block in the custom code injection.
+
+---
+
+## Webflow
+
+Webflow allows custom `<head>` code on the **Site Settings → Custom Code** page, and per-page custom code in **Page Settings → Custom Code**. Both accept raw HTML including `<style>` and `<script>` tags.
+
+### Step 1 — Generate your CSS (same as Framer)
+
+Run the generation script from the Framer section above, or use the [Vanilla JS online demo](https://stackblitz.com/edit/salt-theme-gen-vanilla) to generate and copy the CSS.
+
+### Step 2 — Add to Webflow
+
+1. Go to **Site Settings** → **Custom Code**
+2. In the **Head Code** section, paste:
+
+```html
+<style id="salt-theme">
+:root {
+  --color-primary: oklch(0.55 0.2 240);
+  --color-secondary: oklch(0.60 0.15 260);
+  --color-background: oklch(0.98 0.005 240);
+  --color-surface: oklch(0.95 0.008 240);
+  --color-text: oklch(0.18 0.02 240);
+  --color-muted: oklch(0.45 0.015 240);
+  --color-border: oklch(0.82 0.015 240);
+  /* ... paste all your generated tokens here ... */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: oklch(0.65 0.18 240);
+    --color-background: oklch(0.12 0.015 240);
+    /* ... dark mode tokens ... */
+  }
+}
+</style>
+```
+
+### Step 3 — Use tokens in Webflow
+
+Webflow's style panel lets you type CSS values directly. In any **Color** field, type:
+
+```
+var(--color-primary)
+```
+
+For spacing, use the **Custom CSS** property panel or class settings:
+
+```css
+padding: var(--space-sm) var(--space-lg);
+border-radius: var(--radius-md);
+font-size: var(--text-md);
+```
+
+### Webflow CMS and tokens
+
+For CMS-driven content, add a custom class with token-based styles:
+
+```css
+/* In Webflow's custom code or a linked stylesheet */
+.cms-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  color: var(--color-text);
+}
+
+.cms-card__title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: var(--space-sm);
+}
+
+.cms-card__meta {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+```
+
+Assign the `.cms-card` class to your CMS Collection List items in the Webflow designer.
+
+### Webflow dark mode toggle (JavaScript)
+
+Add this to the **Body Code** section in Site Settings → Custom Code:
+
+```html
+<script>
+  // Restore preference before paint
+  (function() {
+    var pref = localStorage.getItem('webflow-theme');
+    if (pref === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
+```
+
+Then add `:root[data-theme="dark"] { ... }` with your dark token values to the `<style>` block in `<head>`.
+
+For a toggle button, use an **Embed** element in Webflow:
+
+```html
+<button
+  id="theme-toggle"
+  style="background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 6px 14px; cursor: pointer; font-size: var(--text-sm);"
+>
+  Toggle dark mode
+</button>
+
+<script>
+  document.getElementById('theme-toggle').addEventListener('click', function() {
+    var html = document.documentElement;
+    var isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? '' : 'dark');
+    localStorage.setItem('webflow-theme', isDark ? 'light' : 'dark');
+  });
+</script>
+```
+
+---
+
+## Prompt templates reference
+
+### Generic "add salt-theme-gen" prompt
+
+Use this with any AI builder or coding assistant:
+
+```
+Add salt-theme-gen token system to this project:
+
+INSTALL: npm install salt-theme-gen
+
+THEME SETUP:
+import { generateTheme } from 'salt-theme-gen';
+const theme = generateTheme({ preset: 'ocean', spacing: 'default', radius: 'default', fontSize: 'default' });
+
+CSS INJECTION (inject this into <head> before any styles):
+- Light mode: :root { [all token vars] }
+- Dark mode: :root[data-theme="dark"] { [dark token vars] }
+- Also add @media (prefers-color-scheme: dark) as fallback
+
+TOKEN NAMING:
+- Colors: --color-primary, --color-secondary, --color-background, --color-surface, --color-text, --color-muted, --color-border, --color-danger, --color-success, --color-warning, --color-info, --color-on-primary, --color-on-danger, --color-on-success, --color-on-warning, --color-on-info
+- Spacing: --space-xs (4px), --space-sm (8px), --space-md (16px), --space-lg (24px), --space-xl (32px), --space-xxl (48px)
+- Radius: --radius-sm (4px), --radius-md (8px), --radius-lg (12px), --radius-xl (16px), --radius-pill (9999px)
+- Font sizes: --text-xs (12px), --text-sm (14px), --text-md (16px), --text-lg (18px), --text-xl (20px), --text-xxl (24px), --text-3xl (30px)
+- States: --state-{intent}-{hover|pressed|focused|disabled} for primary, danger, success, warning
+
+REPLACE: All hardcoded hex/rgb/hsl color values with the appropriate CSS variable.
+DO NOT: Use any hardcoded color in CSS, inline styles, or Tailwind arbitrary values.
+```
+
+### "Change preset" prompt
+
+After the initial setup, change presets with a single prompt:
+
+```
+Change the salt-theme-gen preset from 'ocean' to 'rose' everywhere.
+Find the generateTheme() call (in src/theme.ts or similar) and update the preset argument.
+No other changes needed — the token names stay the same, only the values change.
+```
+
+---
+
+## When to graduate to a full framework
+
+No-code builders are great for prototyping and small sites. When you hit these limits, move to a framework:
+
+| Limit | Solution |
+| ----- | -------- |
+| Need TypeScript types for tokens | Export to React, Next.js, or Vue project |
+| Want build-time token generation | Use Vite + the Vanilla JS or Sass integration |
+| Need SSR with no FOUC | Move to Next.js (App Router) or Remix |
+| Need component library | Use `@esaltws/react-native-salt` or shadcn/ui with token CSS vars |
+
+The token values and CSS variable names are identical across all integrations — moving a no-code prototype to a full framework means keeping the same CSS and adding the generation script.
+
+---
+
+## Checklist
+
+- CSS variables pasted into `<head>` custom code ✓
+- `:root { }` for light, `:root[data-theme="dark"] { }` for dark ✓
+- `@media (prefers-color-scheme: dark)` as OS-level fallback ✓
+- No hardcoded color values in the builder's design panel ✓
+- Theme toggle (if needed) sets `data-theme` on `<html>` ✓
+- Preference persisted in `localStorage` ✓
+
+<div class="callout callout-tip">
+  <strong>Fastest start:</strong> Use the <a href="https://stackblitz.com/edit/salt-theme-gen-vanilla">Vanilla JS StackBlitz demo</a> to generate your CSS without installing anything. Open the browser console, run the generation script, copy the output, and paste it into your builder's custom code section. The whole process takes under two minutes.
+</div>
