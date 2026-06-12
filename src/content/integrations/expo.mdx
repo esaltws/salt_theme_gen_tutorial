@@ -1,0 +1,434 @@
+---
+title: salt-theme-gen with Expo
+description: Integrate salt-theme-gen in an Expo app — Expo Router layout, expo-system-ui for background color, AsyncStorage persistence, and Expo Go compatibility.
+framework: Expo
+pain: You start with Expo for the fast iteration loop, but theming always feels bolted on. You end up with colors in app.json, more in your StyleSheet, and a dark mode that only works after the first re-render. Nothing is consistent and it's hard to know which value to trust.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-expo
+---
+
+## What you will build
+
+- A `ThemeProvider` wired into Expo Router's root `_layout.tsx`
+- `expo-system-ui` configured to match your generated background color
+- `AsyncStorage` for persisting the user's theme preference across launches
+- Full compatibility with Expo Go, EAS Build, and bare workflow
+
+**Time required:** 15 minutes.
+
+---
+
+## Expo vs bare React Native
+
+This guide is for **Expo** (managed or bare workflow with Expo Router). If you use bare React Native without Expo, see the React Native integration guide — the token and context patterns are identical, but setup differs in a few places.
+
+Key Expo-specific additions:
+- `expo-system-ui` to set the root background and status bar color
+- `AsyncStorage` via `@react-native-async-storage/async-storage` (included in Expo SDK)
+- Expo Router's `_layout.tsx` as the provider entry point
+
+---
+
+## Install
+
+```bash
+npx expo install salt-theme-gen @react-native-async-storage/async-storage
+```
+
+`npx expo install` resolves the correct compatible version for your Expo SDK. Always prefer it over `npm install` for Expo packages.
+
+---
+
+## Step 1 — Generate theme
+
+Create `src/theme/index.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+export const lightTokens = theme.light;
+export const darkTokens  = theme.dark;
+```
+
+---
+
+## Step 2 — ThemeProvider with AsyncStorage
+
+Create `src/theme/ThemeContext.tsx`:
+
+```tsx
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
+import { useColorScheme } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+import { theme } from './index';
+
+type ThemePreference = 'light' | 'dark' | 'system';
+
+interface ThemeContextValue {
+  mode:       GeneratedThemeMode;
+  isDark:     boolean;
+  preference: ThemePreference;
+  setPreference: (p: ThemePreference) => void;
+}
+
+const ThemeContext = createContext<ThemeContextValue>({
+  mode:       theme.light,
+  isDark:     false,
+  preference: 'system',
+  setPreference: () => {},
+});
+
+const STORAGE_KEY = '@app/theme-preference';
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const systemScheme  = useColorScheme();
+  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  const [loaded, setLoaded] = useState(false);
+
+  // Load saved preference on mount
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then(saved => {
+      if (saved === 'light' || saved === 'dark' || saved === 'system') {
+        setPreferenceState(saved);
+      }
+      setLoaded(true);
+    });
+  }, []);
+
+  async function setPreference(p: ThemePreference) {
+    setPreferenceState(p);
+    await AsyncStorage.setItem(STORAGE_KEY, p);
+  }
+
+  const isDark =
+    preference === 'dark' ||
+    (preference === 'system' && systemScheme === 'dark');
+
+  const mode = isDark ? theme.dark : theme.light;
+
+  // Don't render until preference is loaded — prevents flash
+  if (!loaded) return null;
+
+  return (
+    <ThemeContext.Provider value={{ mode, isDark, preference, setPreference }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => useContext(ThemeContext);
+```
+
+---
+
+## Step 3 — Expo Router root layout
+
+In `app/_layout.tsx`, wrap everything with `ThemeProvider` and configure `expo-system-ui`:
+
+```tsx
+import { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import * as SystemUI from 'expo-system-ui';
+import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
+import { theme } from '../src/theme';
+
+function RootLayoutNav() {
+  const { isDark, mode } = useTheme();
+
+  // Keep the system background color in sync with the theme
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(mode.colors.background);
+  }, [isDark, mode.colors.background]);
+
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: mode.colors.surface,
+        },
+        headerTintColor: mode.colors.primary,
+        headerTitleStyle: {
+          color: mode.colors.text,
+          fontWeight: '700',
+        },
+        contentStyle: {
+          backgroundColor: mode.colors.background,
+        },
+      }}
+    />
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutNav>
+    </ThemeProvider>
+  );
+}
+```
+
+`expo-system-ui` sets the native background color visible during app launch and behind the keyboard — without it, you get a white flash even if your app background is dark.
+
+The `Stack` `screenOptions` propagate theme values to every screen's header automatically.
+
+---
+
+## Step 4 — App config for background color
+
+Set a baseline background in `app.json` that matches your light mode background (for the splash screen and initial load):
+
+```json
+{
+  "expo": {
+    "backgroundColor": "#FAFBFF",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "ios": {
+      "userInterfaceStyle": "automatic"
+    }
+  }
+}
+```
+
+`userInterfaceStyle: "automatic"` tells the OS to pass the system dark/light preference to your app, which `useColorScheme()` then reads.
+
+---
+
+## Step 5 — ThemeToggle screen
+
+```tsx
+// app/settings.tsx
+import { View, Text, Switch, StyleSheet } from 'react-native';
+import { useTheme } from '../src/theme/ThemeContext';
+
+export default function SettingsScreen() {
+  const { mode, isDark, preference, setPreference } = useTheme();
+
+  const styles = StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: mode.colors.background,
+      padding: mode.spacing.xl,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: mode.spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: mode.colors.border,
+    },
+    label: {
+      color: mode.colors.text,
+      fontSize: mode.fontSizes.md,
+      fontWeight: '500',
+    },
+    sublabel: {
+      color: mode.colors.muted,
+      fontSize: mode.fontSizes.sm,
+      marginTop: 2,
+    },
+  });
+
+  return (
+    <View style={styles.screen}>
+      <View style={styles.row}>
+        <View>
+          <Text style={styles.label}>Dark mode</Text>
+          <Text style={styles.sublabel}>
+            {preference === 'system' ? 'Following system' : `Set to ${preference}`}
+          </Text>
+        </View>
+        <Switch
+          value={isDark}
+          onValueChange={(val) => setPreference(val ? 'dark' : 'light')}
+          trackColor={{
+            false: mode.colors.border,
+            true:  mode.colors.primary,
+          }}
+          thumbColor={mode.colors.surface}
+        />
+      </View>
+    </View>
+  );
+}
+```
+
+---
+
+## Using tokens in screens
+
+### Home screen example
+
+```tsx
+// app/index.tsx
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useMemo } from 'react';
+import { useTheme } from '../src/theme/ThemeContext';
+
+export default function HomeScreen() {
+  const { mode } = useTheme();
+
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: mode.colors.background,
+    },
+    scroll: {
+      padding: mode.spacing.xl,
+      gap: mode.spacing.md,
+    },
+    heading: {
+      fontSize:   mode.fontSizes['3xl'],
+      fontWeight: '800',
+      color:      mode.colors.text,
+      letterSpacing: -0.5,
+      marginBottom: mode.spacing.sm,
+    },
+    subtitle: {
+      fontSize:   mode.fontSizes.lg,
+      color:      mode.colors.muted,
+      lineHeight: mode.fontSizes.lg * 1.6,
+      marginBottom: mode.spacing.xl,
+    },
+    card: {
+      backgroundColor: mode.surfaceElevation.card,
+      borderWidth:  1,
+      borderColor:  mode.colors.border,
+      borderRadius: mode.radius.lg,
+      padding:      mode.spacing.xl,
+    },
+    cardTitle: {
+      fontSize:   mode.fontSizes.lg,
+      fontWeight: '700',
+      color:      mode.colors.text,
+      marginBottom: mode.spacing.sm,
+    },
+    cardBody: {
+      fontSize:  mode.fontSizes.md,
+      color:     mode.colors.muted,
+      lineHeight: mode.fontSizes.md * 1.6,
+    },
+  }), [mode]);
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Text style={styles.heading}>Your app</Text>
+        <Text style={styles.subtitle}>
+          Styled with salt-theme-gen tokens.
+        </Text>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Ocean preset</Text>
+          <Text style={styles.cardBody}>
+            Every color, spacing value, and radius in this screen
+            comes from a single generateTheme() call.
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+```
+
+---
+
+## Expo Go compatibility
+
+`salt-theme-gen` is a pure JavaScript/TypeScript package with no native modules. It works in Expo Go without any additional setup or custom development client.
+
+```bash
+# Test immediately in Expo Go
+npx expo start
+```
+
+Scan the QR code — the theme is active.
+
+---
+
+## EAS Build
+
+No additional configuration needed for EAS Build. `salt-theme-gen` has zero native dependencies and does not require a custom native module.
+
+```bash
+eas build --platform all --profile preview
+```
+
+---
+
+## Integration with @esaltws/react-native-salt
+
+If you add `@esaltws/react-native-salt` (the designed pair), pass your mode tokens to `SaltProvider`:
+
+```bash
+npx expo install @esaltws/react-native-salt
+```
+
+```tsx
+// app/_layout.tsx
+import { SaltProvider } from '@esaltws/react-native-salt';
+
+function RootLayoutNav() {
+  const { mode } = useTheme();
+
+  return (
+    <SaltProvider mode={mode}>
+      <Stack screenOptions={{ ... }} />
+    </SaltProvider>
+  );
+}
+```
+
+Every `@esaltws/react-native-salt` component — `Button`, `Card`, `Input`, `Badge`, `Modal`, `BottomSheet` — reads tokens from `SaltProvider`. You stop writing `StyleSheet.create()` for common components entirely.
+
+---
+
+## File structure summary
+
+```
+app/
+├── _layout.tsx               ← ThemeProvider + SystemUI + Stack options
+├── index.tsx                 ← home screen
+└── settings.tsx              ← theme toggle screen
+
+src/
+└── theme/
+    ├── index.ts              ← generateTheme() export
+    └── ThemeContext.tsx      ← ThemeProvider + useTheme + AsyncStorage
+
+app.json                      ← backgroundColor + userInterfaceStyle
+```
+
+---
+
+## Checklist
+
+- `npx expo install salt-theme-gen` ✓
+- `src/theme/index.ts` calls `generateTheme()` ✓
+- `ThemeProvider` in `app/_layout.tsx` ✓
+- `AsyncStorage` persists preference across launches ✓
+- `SystemUI.setBackgroundColorAsync()` syncs native background ✓
+- `app.json` has `userInterfaceStyle: "automatic"` ✓
+- `useColorScheme()` drives `isDark` from OS preference ✓
+- Screens use `mode.colors.*` via `useMemo` StyleSheet ✓
+
+<div class="callout callout-note">
+  <strong>New Architecture (Expo SDK 51+):</strong> salt-theme-gen is fully compatible with the New Architecture (Fabric + JSI). It has no bridge dependencies and generates plain JavaScript objects — no changes needed when enabling the New Architecture in your <code>app.json</code>.
+</div>
