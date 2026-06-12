@@ -1,0 +1,330 @@
+---
+title: Color Presets
+description: Explore all 20 built-in presets, understand how each is tuned, and learn how to use any hex color as your primary brand color.
+order: 4
+pain: You open a color picker, spin the wheel for 20 minutes, and still aren't sure if the blue you picked will look right in dark mode or at small sizes. Starting from scratch wastes time and produces inconsistent results.
+---
+
+## Two ways to start
+
+`generateTheme()` accepts either a named preset or a custom hex color — never both at once:
+
+```ts
+// Option 1 — named preset
+generateTheme({ preset: 'ocean' })
+
+// Option 2 — custom hex
+generateTheme({ primary: '#E11D48' })
+```
+
+Both produce the exact same output shape. The difference is only in what drives the primary OKLCH value — a pre-tuned hue or your own brand color.
+
+---
+
+## The 20 presets
+
+Each preset is defined by a specific OKLCH hue angle and a tuned chroma value. The hue gives you the color family. The chroma controls how saturated or muted the palette feels.
+
+### Cool presets
+
+**`ocean`** — Hue ~220° (blue)
+The default preset. A medium-chroma blue that reads as professional and trustworthy without being corporate. Works well for SaaS, developer tools, and productivity apps.
+
+```ts
+generateTheme({ preset: 'ocean' })
+// primary: oklch(0.55 0.18 220)
+```
+
+---
+
+**`arctic`** — Hue ~210° (icy blue)
+Lighter and more desaturated than Ocean. Clean and minimal. Works well for healthcare, documentation sites, and tools where clarity matters more than personality.
+
+```ts
+generateTheme({ preset: 'arctic' })
+```
+
+---
+
+**`sapphire`** — Hue ~230° (deep blue)
+Richer and more saturated than Ocean. The blue has weight — closer to a deep royal blue. Works well for financial products, legal tools, or anything where authority is the primary signal.
+
+```ts
+generateTheme({ preset: 'sapphire' })
+```
+
+---
+
+**`storm`** — Hue ~240° (blue-purple)
+A blue that shifts toward violet. Slightly muted chroma keeps it from reading as purple. Works well for analytics dashboards, dark-heavy UIs, and security products.
+
+```ts
+generateTheme({ preset: 'storm' })
+```
+
+---
+
+**`peacock`** — Hue ~195° (teal-blue)
+Between blue and teal. High chroma, vivid and vibrant. Works well for consumer apps, travel products, and anything needing energy without aggression.
+
+```ts
+generateTheme({ preset: 'peacock' })
+```
+
+---
+
+### Teal and green presets
+
+**`mint`** — Hue ~175° (soft teal-green)
+Light, fresh, and calm. Low chroma keeps it from reading as green. Works well for health apps, note-taking tools, and productivity software with a calm personality.
+
+```ts
+generateTheme({ preset: 'mint' })
+```
+
+---
+
+**`emerald`** — Hue ~150° (medium green)
+A confident, slightly warm green. Not so saturated that it reads as neon. Works well for finance (growth), environment, and wellness brands.
+
+```ts
+generateTheme({ preset: 'emerald' })
+```
+
+---
+
+**`forest`** — Hue ~140° (deep green)
+Dark, earthy green with moderate chroma. Grounded and reliable. Works well for sustainability brands, outdoor products, and anything that needs a natural feel.
+
+```ts
+generateTheme({ preset: 'forest' })
+```
+
+---
+
+### Purple and violet presets
+
+**`lavender`** — Hue ~290° (soft purple)
+Muted, calm violet. Low chroma gives it a refined softness. Works well for creative tools, journaling apps, and consumer products targeting a calm aesthetic.
+
+```ts
+generateTheme({ preset: 'lavender' })
+```
+
+---
+
+**`twilight`** — Hue ~270° (medium purple)
+A balanced purple — not too red, not too blue. Works well for creative platforms, AI products, and anything wanting a modern but approachable personality.
+
+```ts
+generateTheme({ preset: 'twilight' })
+```
+
+---
+
+**`aurora`** — Hue ~185° shifting toward purple
+A teal-to-violet character that evokes the aurora borealis. High chroma, vivid. Works well for AI tools, futuristic products, and apps where "impressive at first glance" is a goal.
+
+```ts
+generateTheme({ preset: 'aurora' })
+```
+
+---
+
+### Warm presets
+
+**`rose-gold`** — Hue ~15° (warm pink-red)
+Sophisticated, warm, and premium. Low-to-medium chroma keeps it from reading as pink. Works well for luxury products, beauty tools, and consumer brands targeting warmth and elegance.
+
+```ts
+generateTheme({ preset: 'rose-gold' })
+```
+
+---
+
+**`cherry-blossom`** — Hue ~355° (soft pink)
+Delicate and light. Higher chroma than rose-gold but softer than red. Works well for lifestyle apps, consumer social platforms, and any product where warmth and approachability are primary.
+
+```ts
+generateTheme({ preset: 'cherry-blossom' })
+```
+
+---
+
+**`coral-reef`** — Hue ~25° (orange-pink)
+Warm and energetic. Sits between pink and orange. Works well for food apps, social products, and consumer tools where friendliness and energy are key.
+
+```ts
+generateTheme({ preset: 'coral-reef' })
+```
+
+---
+
+**`sunset`** — Hue ~35° (warm orange)
+A confident, warm orange. Not bright enough to be aggressive, not muted enough to lose energy. Works well for startup landing pages, creative platforms, and tools with high energy.
+
+```ts
+generateTheme({ preset: 'sunset' })
+```
+
+---
+
+**`honey`** — Hue ~60° (amber-yellow)
+Warm amber with a golden character. Works well for food brands, marketplace products, and anything where approachability and warmth are the dominant values.
+
+```ts
+generateTheme({ preset: 'honey' })
+```
+
+---
+
+### High-drama presets
+
+**`volcano`** — Hue ~20° (deep red-orange)
+High chroma, intense. The most aggressive preset. Works well for security products (threat alerts), gaming tools, or products where urgency and power are core to the identity.
+
+```ts
+generateTheme({ preset: 'volcano' })
+```
+
+---
+
+**`desert`** — Hue ~50° (sandy tan)
+Warm and earthy, low chroma. Feels aged and refined. Works well for editorial products, content-first apps, and luxury brands that prefer restraint over boldness.
+
+```ts
+generateTheme({ preset: 'desert' })
+```
+
+---
+
+**`midnight`** — Hue ~250° (very dark blue-purple)
+An extremely dark, near-black primary with a blue-purple tint. Works well for dark-first products, terminal-style tools, and developer utilities where a subdued palette is preferred.
+
+```ts
+generateTheme({ preset: 'midnight' })
+```
+
+---
+
+**`autumn`** — Hue ~40° (warm red-orange)
+Rich and earthy. Deeper than sunset, more orange than volcano. Works well for editorial content, lifestyle brands, and seasonal products.
+
+```ts
+generateTheme({ preset: 'autumn' })
+```
+
+---
+
+## Comparing presets in code
+
+To compare multiple presets side by side, generate them all and inspect:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const presets = ['ocean', 'forest', 'sunset', 'aurora', 'midnight'] as const;
+
+for (const preset of presets) {
+  const theme = generateTheme({ preset });
+  console.log(preset, {
+    primary: theme.light.colors.primary,
+    secondary: theme.light.colors.secondary,
+    ratio: theme.light.accessibility.primaryOnBackground.ratio,
+  });
+}
+```
+
+This is also the quickest way to audit which presets meet your contrast requirements before committing to one.
+
+---
+
+## Using a custom hex color
+
+If you have a brand color, use it directly. The library converts hex to OKLCH internally:
+
+```ts
+generateTheme({ primary: '#E11D48' })  // Rose red
+generateTheme({ primary: '#7C3AED' })  // Violet
+generateTheme({ primary: '#059669' })  // Emerald green
+generateTheme({ primary: '#D97706' })  // Amber
+```
+
+Any valid 6-digit hex value works. The library does not require the hex to be within a specific gamut — it converts to OKLCH and clips to the displayable range if needed.
+
+### What happens under the hood
+
+When you pass a hex color:
+
+1. The hex is parsed to linear RGB.
+2. Linear RGB is converted to OKLCH using the standard CIE conversion matrix.
+3. The resulting `L`, `C`, `H` values become the basis for your primary color.
+4. Secondary, tertiary, and quaternary colors are derived using hue rotations in OKLCH (the harmony algorithm — Chapter 7).
+5. Dark mode variants are computed by adjusting `L` while holding `C` and `H` constant.
+6. State colors shift `L` by fixed perceptual increments.
+7. `on*` colors are chosen from near-white or near-black based on WCAG contrast.
+
+All of this runs at build time or on the server — never in the browser.
+
+### Validating your hex color
+
+The library emits a `console.warn` if:
+- The hex produces an OKLCH lightness below `0.15` (too dark for the default light mode primary)
+- The hex produces an OKLCH lightness above `0.90` (too light — will fail contrast on white backgrounds)
+- Any derived color requires auto-correction to pass WCAG AA
+
+You can check the accessibility report after generation to see the final contrast ratios:
+
+```ts
+const theme = generateTheme({ primary: '#FFDD00' }); // Very light yellow
+
+// The library auto-corrects — primary may be darkened to pass AA
+console.log(theme.light.accessibility.primaryOnBackground);
+// { ratio: 4.6, level: 'AA' }
+```
+
+---
+
+## Preset vs custom — when to use each
+
+| Situation | Recommendation |
+| --------- | -------------- |
+| Prototyping or exploring | Use a preset — fast, no decision needed |
+| Side project with no brand color | Use a preset — pick the personality you want |
+| Client work with a brand color | Use `primary: '#hex'` — honor the brand |
+| Matching an existing design system | Use `primary: '#hex'` with the system's primary |
+| Teaching or demos | Use `ocean` — familiar to anyone who has seen this guide |
+| Dark-first product | Start with `midnight` or `storm` |
+| Soft, consumer feel | Start with `mint`, `lavender`, or `cherry-blossom` |
+| High-energy startup | Start with `aurora`, `sunset`, or `peacock` |
+
+---
+
+## Combining presets with scales
+
+Presets and scales are independent. You can mix any preset with any spacing, radius, or font size scale:
+
+```ts
+// Corporate SaaS — trustworthy blue, tight layout, sharp corners
+generateTheme({ preset: 'sapphire', spacing: 'compact', radius: 'none' })
+
+// Consumer app — warm orange, generous layout, very rounded
+generateTheme({ preset: 'sunset', spacing: 'spacious', radius: 'pill' })
+
+// Developer tool — muted dark, compact, monospace-friendly
+generateTheme({ preset: 'midnight', spacing: 'compact', radius: 'sm' })
+```
+
+Chapter 5 covers the exact values produced by each scale combination.
+
+---
+
+## A note on preset naming
+
+The preset names are evocative, not literal. `ocean` does not mean "a blue that looks like the ocean." It means "a blue with these OKLCH parameters that produces a specific visual character." Use the names as starting points for exploration, not as strict semantic categories.
+
+The best way to choose is to generate a few candidates and look at them in your UI. The generated CSS variables mean a preset swap is a one-word change.
+
+<div class="callout callout-tip">
+  <strong>StackBlitz demo:</strong> The companion StackBlitz project for this chapter lets you switch presets live and see the full token output update in real time. Link in the Integrations section after Chapter 11.
+</div>
