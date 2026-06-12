@@ -1,0 +1,387 @@
+---
+title: salt-theme-gen with Nuxt 3
+description: Inject theme tokens server-side in Nuxt 3 using a plugin — full SSR, zero flash of unstyled content, and dark mode via useColorMode.
+framework: Nuxt 3
+pain: Nuxt renders HTML on the server but your theme colors live in JavaScript. The first paint shows the wrong colors, useHead runs too late, and every dark mode solution involves client-side flicker that you can't seem to eliminate.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-nuxt
+---
+
+## What you will build
+
+- CSS variables generated at build time and injected via a Nuxt plugin
+- Server-side rendering with no flash of unstyled content
+- Dark mode using Nuxt's built-in `useColorMode()` composable
+- A `useTheme()` composable for typed token access anywhere in the app
+
+**Time required:** 15 minutes.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+---
+
+## Step 1 — Generate theme and CSS variables
+
+Create `lib/theme.ts` at the project root:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`--color-${kebab(k)}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`--surface-${k}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`--space-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`--radius-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`--text-${k}: ${v}px;`);
+
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`--state-${intent}-${state}: ${val};`);
+
+  return lines.join('\n  ');
+}
+
+export const lightVars = modeToVars(theme.light);
+export const darkVars  = modeToVars(theme.dark);
+
+export const themeCSS = `
+:root { ${lightVars} }
+.dark { ${darkVars} }
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) { ${darkVars} }
+}
+`.trim();
+```
+
+Nuxt's `useColorMode()` applies a class (`dark` or `light`) to `<html>` rather than a `data-theme` attribute — the CSS targets `.dark` instead.
+
+---
+
+## Step 2 — Inject via Nuxt plugin
+
+Create `plugins/theme.client.ts`:
+
+```ts
+import { themeCSS } from '~/lib/theme';
+
+export default defineNuxtPlugin(() => {
+  if (import.meta.server) return;
+
+  const styleEl = document.getElementById('salt-theme') as HTMLStyleElement | null
+    ?? Object.assign(document.createElement('style'), { id: 'salt-theme' });
+
+  styleEl.textContent = themeCSS;
+
+  if (!styleEl.parentNode) {
+    document.head.appendChild(styleEl);
+  }
+});
+```
+
+For SSR injection (the better option — eliminates FOUC entirely), use `nuxt.config.ts` to inline the CSS directly into the server-rendered HTML:
+
+```ts
+// nuxt.config.ts
+import { themeCSS } from './lib/theme';
+
+export default defineNuxtConfig({
+  app: {
+    head: {
+      style: [
+        { children: themeCSS, type: 'text/css' },
+      ],
+    },
+  },
+});
+```
+
+The `app.head.style` array is rendered server-side in `<head>` before any JavaScript. This is the zero-FOUC approach — the CSS is in the HTML the browser receives, not added by a script.
+
+---
+
+## Step 3 — Dark mode with useColorMode
+
+Nuxt ships `@nuxtjs/color-mode` as a first-party module. Install it:
+
+```bash
+npm install @nuxtjs/color-mode
+```
+
+Add to `nuxt.config.ts`:
+
+```ts
+import { themeCSS } from './lib/theme';
+
+export default defineNuxtConfig({
+  modules: ['@nuxtjs/color-mode'],
+
+  colorMode: {
+    classSuffix: '',        // applies class 'dark' not 'dark-mode'
+    preference: 'system',  // default: follow OS preference
+    fallback: 'light',
+  },
+
+  app: {
+    head: {
+      style: [{ children: themeCSS, type: 'text/css' }],
+    },
+  },
+});
+```
+
+`classSuffix: ''` makes the module add class `dark` (not `dark-mode`) to match your `.dark { }` CSS selector.
+
+---
+
+## Step 4 — Theme toggle component
+
+```vue
+<!-- components/ThemeToggle.vue -->
+<template>
+  <button class="toggle" @click="toggleMode" :aria-label="`Switch to ${next} mode`">
+    {{ colorMode.value === 'dark' ? '☀ Light' : '◐ Dark' }}
+  </button>
+</template>
+
+<script setup lang="ts">
+const colorMode = useColorMode();
+const next = computed(() => colorMode.value === 'dark' ? 'light' : 'dark');
+
+function toggleMode() {
+  colorMode.preference = next.value;
+}
+</script>
+
+<style scoped>
+.toggle {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  cursor: pointer;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+.toggle:hover { border-color: var(--color-primary); }
+</style>
+```
+
+`useColorMode()` is auto-imported by Nuxt — no import statement needed.
+
+---
+
+## Step 5 — Typed theme composable
+
+Create `composables/useTheme.ts`:
+
+```ts
+import { theme } from '~/lib/theme';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export function useTheme() {
+  const colorMode = useColorMode();
+
+  const mode = computed<GeneratedThemeMode>(() =>
+    colorMode.value === 'dark' ? theme.dark : theme.light,
+  );
+
+  return { theme, mode };
+}
+```
+
+Nuxt auto-imports everything in `composables/` — use `useTheme()` in any component without importing it.
+
+---
+
+## Using tokens in components
+
+### In `<style>` blocks
+
+```vue
+<!-- pages/index.vue -->
+<template>
+  <main class="home">
+    <h1 class="title">Welcome</h1>
+    <p class="subtitle">Built with salt-theme-gen tokens.</p>
+  </main>
+</template>
+
+<style scoped>
+.home {
+  padding: var(--space-xxl);
+  background: var(--color-background);
+}
+.title {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  color: var(--color-text);
+}
+.subtitle {
+  font-size: var(--text-lg);
+  color: var(--color-muted);
+}
+</style>
+```
+
+### In `<script setup>` with typed tokens
+
+```vue
+<template>
+  <div :style="cardStyle">
+    <h3 :style="{ color: mode.colors.text, fontSize: `${mode.fontSizes.lg}px` }">
+      {{ title }}
+    </h3>
+  </div>
+</template>
+
+<script setup lang="ts">
+defineProps<{ title: string }>();
+
+const { mode } = useTheme();
+
+const cardStyle = computed(() => ({
+  background: mode.value.surfaceElevation.card,
+  border: `1px solid ${mode.value.colors.border}`,
+  borderRadius: `${mode.value.radius.lg}px`,
+  padding: `${mode.value.spacing.xl}px`,
+}));
+</script>
+```
+
+---
+
+## Global base styles
+
+Create `assets/global.css` and import in `nuxt.config.ts`:
+
+```css
+/* assets/global.css */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--state-primary-hover); }
+```
+
+```ts
+// nuxt.config.ts
+export default defineNuxtConfig({
+  css: ['~/assets/global.css'],
+  // ...
+});
+```
+
+---
+
+## Without @nuxtjs/color-mode
+
+If you prefer not to use the module, manage dark mode manually:
+
+```ts
+// composables/useThemeMode.ts
+export function useThemeMode() {
+  const isDark = useState('isDark', () => false);
+
+  function init() {
+    if (import.meta.server) return;
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    isDark.value = saved === 'dark' || (!saved && prefersDark);
+    document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light');
+  }
+
+  function toggle() {
+    isDark.value = !isDark.value;
+    const label = isDark.value ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', label);
+    localStorage.setItem('theme', label);
+  }
+
+  return { isDark, init, toggle };
+}
+```
+
+And update the CSS in `themeCSS` to use `data-theme` attributes instead of classes:
+
+```ts
+export const themeCSS = `
+:root { ${lightVars} }
+:root[data-theme="dark"]  { ${darkVars} }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { ${darkVars} }
+}
+`.trim();
+```
+
+---
+
+## File structure summary
+
+```
+lib/
+└── theme.ts                      ← generateTheme() + CSS var export
+
+plugins/
+└── theme.client.ts               ← optional client-side injection fallback
+
+composables/
+├── useTheme.ts                   ← typed token access (auto-imported)
+└── useThemeMode.ts               ← manual dark mode (if not using color-mode module)
+
+assets/
+└── global.css                    ← token-based base styles
+
+nuxt.config.ts                    ← SSR style injection + module config
+```
+
+---
+
+## Checklist
+
+- `lib/theme.ts` generates CSS vars ✓
+- `nuxt.config.ts` injects `themeCSS` via `app.head.style` (server-side) ✓
+- `@nuxtjs/color-mode` installed with `classSuffix: ''` ✓
+- `.dark { }` block in `themeCSS` targets Nuxt's class toggle ✓
+- `composables/useTheme.ts` auto-imported — no manual imports ✓
+- `assets/global.css` listed in `nuxt.config.ts` `css` array ✓
+
+<div class="callout callout-note">
+  <strong>SSR vs client-only injection:</strong> The <code>app.head.style</code> approach in <code>nuxt.config.ts</code> is strongly preferred over the client plugin. It inlines the CSS in server-rendered HTML — the browser applies tokens before any JavaScript runs. Use the client plugin only as a fallback for dynamic runtime theme switching.
+</div>
