@@ -1,0 +1,456 @@
+---
+title: salt-theme-gen with CSS-in-JS
+description: Use salt-theme-gen tokens with styled-components, Emotion, and vanilla-extract — typed theme objects, dark mode, and zero duplication.
+framework: CSS-in-JS
+pain: Your styled-components theme object is a 200-line file of hardcoded hex values someone wrote two years ago. Dark mode is a second object that's 60% copy-pasted. When the brand color changes, you update both objects by hand and hope you didn't miss anything.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-css-in-js
+---
+
+## The connection
+
+CSS-in-JS libraries accept a theme object that flows through `ThemeProvider` to every styled component. `salt-theme-gen` outputs exactly that — a typed `GeneratedThemeMode` object with every color, spacing value, and radius your components need.
+
+The integration is: **replace your handwritten theme object with `theme.light` (and `theme.dark`)**.
+
+---
+
+## styled-components
+
+### Install
+
+```bash
+npm install salt-theme-gen styled-components
+npm install --save-dev @types/styled-components
+```
+
+### Theme provider setup
+
+Create `src/theme/index.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+```
+
+Create `src/theme/styled.d.ts` to type the `useTheme()` hook:
+
+```ts
+// src/theme/styled.d.ts
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+import 'styled-components';
+
+declare module 'styled-components' {
+  export interface DefaultTheme extends GeneratedThemeMode {}
+}
+```
+
+This tells styled-components that your theme object is a `GeneratedThemeMode` — every `useTheme()` call returns fully typed tokens.
+
+Wrap your app in `App.tsx`:
+
+```tsx
+import { useState } from 'react';
+import { ThemeProvider } from 'styled-components';
+import { theme } from './theme';
+
+export function App() {
+  const [isDark, setIsDark] = useState(false);
+  const mode = isDark ? theme.dark : theme.light;
+
+  return (
+    <ThemeProvider theme={mode}>
+      <GlobalStyles />
+      {/* your app */}
+    </ThemeProvider>
+  );
+}
+```
+
+### Global styles
+
+```tsx
+import { createGlobalStyle } from 'styled-components';
+
+const GlobalStyles = createGlobalStyle`
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background-color: ${({ theme }) => theme.colors.background};
+    color: ${({ theme }) => theme.colors.text};
+    font-size: ${({ theme }) => theme.fontSizes.md}px;
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    transition: background-color 0.2s, color 0.2s;
+  }
+`;
+```
+
+### Styled components with tokens
+
+```tsx
+import styled from 'styled-components';
+
+export const Button = styled.button<{ intent?: 'primary' | 'danger' | 'success' }>`
+  background: ${({ theme, intent = 'primary' }) => theme.colors[intent]};
+  color: ${({ theme, intent = 'primary' }) =>
+    theme.colors[`on${intent.charAt(0).toUpperCase()}${intent.slice(1)}` as keyof typeof theme.colors]
+  };
+  border: none;
+  border-radius: ${({ theme }) => theme.radius.md}px;
+  padding: ${({ theme }) => theme.spacing.sm}px ${({ theme }) => theme.spacing.lg}px;
+  font-size: ${({ theme }) => theme.fontSizes.md}px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: ${({ theme, intent = 'primary' }) =>
+      theme.states[intent as keyof typeof theme.states].hover
+    };
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.states.primary.focused};
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    background: ${({ theme }) => theme.states.primary.disabled};
+    cursor: not-allowed;
+  }
+`;
+
+export const Card = styled.div`
+  background: ${({ theme }) => theme.surfaceElevation.card};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radius.lg}px;
+  padding: ${({ theme }) => theme.spacing.xl}px;
+`;
+
+export const Heading = styled.h2`
+  font-size: ${({ theme }) => theme.fontSizes.xl}px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.text};
+  margin: 0 0 ${({ theme }) => theme.spacing.md}px;
+`;
+
+export const Muted = styled.p`
+  font-size: ${({ theme }) => theme.fontSizes.md}px;
+  color: ${({ theme }) => theme.colors.muted};
+  line-height: 1.7;
+  margin: 0;
+`;
+```
+
+### Dark mode hook
+
+```tsx
+import { useState, useCallback } from 'react';
+import { ThemeProvider } from 'styled-components';
+import { theme } from './theme';
+
+export function ThemeRoot({ children }: { children: React.ReactNode }) {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+
+  const toggle = useCallback(() => {
+    setIsDark(d => {
+      const next = !d;
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      return next;
+    });
+  }, []);
+
+  return (
+    <ThemeProvider theme={isDark ? theme.dark : theme.light}>
+      <GlobalStyles />
+      {children}
+    </ThemeProvider>
+  );
+}
+```
+
+---
+
+## Emotion
+
+Emotion's API is nearly identical to styled-components. The main difference is the import paths.
+
+### Install
+
+```bash
+npm install salt-theme-gen @emotion/react @emotion/styled
+```
+
+### Theme typing
+
+```ts
+// src/theme/emotion.d.ts
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+import '@emotion/react';
+
+declare module '@emotion/react' {
+  export interface Theme extends GeneratedThemeMode {}
+}
+```
+
+### Provider setup
+
+```tsx
+import { ThemeProvider, Global, css } from '@emotion/react';
+import { theme } from './theme';
+
+function globalStyles(mode: typeof theme.light) {
+  return css`
+    body {
+      margin: 0;
+      background-color: ${mode.colors.background};
+      color: ${mode.colors.text};
+      font-size: ${mode.fontSizes.md}px;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+  `;
+}
+
+export function ThemeRoot({ children, isDark }: { children: React.ReactNode; isDark: boolean }) {
+  const mode = isDark ? theme.dark : theme.light;
+
+  return (
+    <ThemeProvider theme={mode}>
+      <Global styles={globalStyles(mode)} />
+      {children}
+    </ThemeProvider>
+  );
+}
+```
+
+### Emotion styled components
+
+```tsx
+import styled from '@emotion/styled';
+
+export const Button = styled.button`
+  background: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.onPrimary};
+  border: none;
+  border-radius: ${({ theme }) => theme.radius.md}px;
+  padding: ${({ theme }) => theme.spacing.sm}px ${({ theme }) => theme.spacing.lg}px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { background: ${({ theme }) => theme.states.primary.hover}; }
+`;
+```
+
+### Emotion css prop
+
+```tsx
+/** @jsxImportSource @emotion/react */
+import { useTheme } from '@emotion/react';
+
+function Card({ title, body }: { title: string; body: string }) {
+  const theme = useTheme();
+
+  return (
+    <div css={{
+      background:   theme.surfaceElevation.card,
+      border:       `1px solid ${theme.colors.border}`,
+      borderRadius: theme.radius.lg,
+      padding:      theme.spacing.xl,
+    }}>
+      <h3 css={{
+        fontSize:     theme.fontSizes.lg,
+        fontWeight:   700,
+        color:        theme.colors.text,
+        marginBottom: theme.spacing.sm,
+      }}>
+        {title}
+      </h3>
+      <p css={{
+        fontSize:  theme.fontSizes.md,
+        color:     theme.colors.muted,
+        lineHeight: 1.7,
+        margin: 0,
+      }}>
+        {body}
+      </p>
+    </div>
+  );
+}
+```
+
+---
+
+## vanilla-extract
+
+vanilla-extract generates CSS at build time — zero runtime overhead. Token values are written into static CSS files during the build.
+
+### Install
+
+```bash
+npm install salt-theme-gen @vanilla-extract/css @vanilla-extract/vite-plugin
+```
+
+### Create theme contract
+
+```ts
+// src/theme/contract.css.ts
+import { createThemeContract } from '@vanilla-extract/css';
+
+export const vars = createThemeContract({
+  colors: {
+    primary:    null,
+    secondary:  null,
+    background: null,
+    surface:    null,
+    text:       null,
+    muted:      null,
+    border:     null,
+    danger:     null,
+    success:    null,
+    warning:    null,
+    info:       null,
+    onPrimary:  null,
+    onDanger:   null,
+    onSuccess:  null,
+    onWarning:  null,
+    onInfo:     null,
+  },
+  spacing: {
+    xs: null, sm: null, md: null, lg: null, xl: null, xxl: null,
+  },
+  radius: {
+    sm: null, md: null, lg: null, xl: null, pill: null,
+  },
+  fontSizes: {
+    xs: null, sm: null, md: null, lg: null, xl: null, xxl: null, '3xl': null,
+  },
+});
+```
+
+### Implement the contract for each mode
+
+```ts
+// src/theme/themes.css.ts
+import { createTheme } from '@vanilla-extract/css';
+import { generateTheme } from 'salt-theme-gen';
+import { vars } from './contract.css';
+
+const theme = generateTheme({ preset: 'ocean' });
+
+function px(n: number) { return `${n}px`; }
+
+export const lightTheme = createTheme(vars, {
+  colors: {
+    primary:    theme.light.colors.primary,
+    secondary:  theme.light.colors.secondary,
+    background: theme.light.colors.background,
+    surface:    theme.light.colors.surface,
+    text:       theme.light.colors.text,
+    muted:      theme.light.colors.muted,
+    border:     theme.light.colors.border,
+    danger:     theme.light.colors.danger,
+    success:    theme.light.colors.success,
+    warning:    theme.light.colors.warning,
+    info:       theme.light.colors.info,
+    onPrimary:  theme.light.colors.onPrimary,
+    onDanger:   theme.light.colors.onDanger,
+    onSuccess:  theme.light.colors.onSuccess,
+    onWarning:  theme.light.colors.onWarning,
+    onInfo:     theme.light.colors.onInfo,
+  },
+  spacing: {
+    xs: px(theme.light.spacing.xs), sm: px(theme.light.spacing.sm),
+    md: px(theme.light.spacing.md), lg: px(theme.light.spacing.lg),
+    xl: px(theme.light.spacing.xl), xxl: px(theme.light.spacing.xxl),
+  },
+  radius: {
+    sm: px(theme.light.radius.sm),   md: px(theme.light.radius.md),
+    lg: px(theme.light.radius.lg),   xl: px(theme.light.radius.xl),
+    pill: px(theme.light.radius.pill),
+  },
+  fontSizes: {
+    xs: px(theme.light.fontSizes.xs), sm: px(theme.light.fontSizes.sm),
+    md: px(theme.light.fontSizes.md), lg: px(theme.light.fontSizes.lg),
+    xl: px(theme.light.fontSizes.xl), xxl: px(theme.light.fontSizes.xxl),
+    '3xl': px(theme.light.fontSizes['3xl']),
+  },
+});
+
+export const darkTheme = createTheme(vars, {
+  colors: {
+    primary:    theme.dark.colors.primary,
+    // ... same structure with theme.dark values
+  },
+  // ...
+});
+```
+
+### Use in component styles
+
+```ts
+// src/components/Button/Button.css.ts
+import { style } from '@vanilla-extract/css';
+import { vars } from '../../theme/contract.css';
+
+export const button = style({
+  background:   vars.colors.primary,
+  color:        vars.colors.onPrimary,
+  border:       'none',
+  borderRadius: vars.radius.md,
+  padding:      `${vars.spacing.sm} ${vars.spacing.lg}`,
+  fontSize:     vars.fontSizes.md,
+  fontWeight:   600,
+  cursor:       'pointer',
+});
+```
+
+```tsx
+// Button.tsx
+import * as styles from './Button.css';
+
+export function Button({ children }: { children: React.ReactNode }) {
+  return <button className={styles.button}>{children}</button>;
+}
+```
+
+---
+
+## Choosing between approaches
+
+| Library | Runtime cost | Dark mode | Type safety | Best for |
+| ------- | ------------ | --------- | ----------- | -------- |
+| styled-components | Medium | Re-render | Excellent | React apps with complex dynamic styles |
+| Emotion | Low-medium | Re-render | Excellent | React apps, Next.js, design systems |
+| vanilla-extract | Zero | Class swap | Excellent | Performance-critical apps, SSR-first |
+
+All three support `GeneratedThemeMode` as the theme type with zero additional glue code.
+
+---
+
+## CSS variables vs CSS-in-JS — which to use?
+
+If your project already uses styled-components or Emotion, the patterns above give you typed token access. If you are starting fresh, consider whether CSS-in-JS is necessary:
+
+| Use CSS variables when | Use CSS-in-JS when |
+| ---------------------- | ------------------ |
+| You want zero runtime overhead | You have complex dynamic styles |
+| You need SSR without hydration | You already use styled-components/Emotion |
+| Your team knows CSS well | You want co-located component styles |
+| You use multiple frameworks | You are React-only |
+
+Both approaches use the same `generateTheme()` call and the same token values. CSS-in-JS adds a runtime but gains co-location and full TypeScript at the interpolation level.
+
+<div class="callout callout-note">
+  <strong>Mixing approaches:</strong> CSS variables and CSS-in-JS are not mutually exclusive. You can inject CSS variables globally (for base styles and non-component CSS) and use CSS-in-JS for component-level styles. Both read from the same generated token values — the source of truth stays <code>generateTheme()</code>.
+</div>
