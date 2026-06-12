@@ -1,0 +1,305 @@
+---
+title: Comparing Themes
+description: Use diffTheme() to audit differences between two generated themes — for design reviews, A/B testing, and migration checks.
+order: 9
+pain: You generate a new theme, update the CSS variables, and deploy. Three days later someone asks what changed. You have no record of which tokens shifted, by how much, or whether any contrast ratios dropped.
+---
+
+## Why you need a diff
+
+Theme changes are invisible by default. You swap a preset, regenerate variables, redeploy. The UI looks different. But which of the 80+ tokens actually changed? Did any accessibility checks drop from AAA to AA? Did the dark mode surface color shift in a way that breaks a component?
+
+Without a structured diff, the answer is "look at it and see" — which is not a design audit, it is a guessing game.
+
+`diffTheme()` produces a structured record of every token that changed between two generated themes, in both light and dark modes.
+
+---
+
+## Basic usage
+
+```ts
+import { generateTheme, diffTheme } from 'salt-theme-gen';
+
+const before = generateTheme({ preset: 'ocean' });
+const after  = generateTheme({ preset: 'forest' });
+
+const diff = diffTheme(before, after);
+```
+
+`diff` is an object describing every token that differs between `before` and `after`. Tokens that are identical do not appear in the diff.
+
+---
+
+## The diff output shape
+
+```ts
+interface ThemeDiff {
+  light: ModeDiff;
+  dark:  ModeDiff;
+}
+
+interface ModeDiff {
+  colors:          Record<string, TokenDiff>;
+  states:          Record<string, Record<string, TokenDiff>>;
+  surfaceElevation: Record<string, TokenDiff>;
+  spacing:         Record<string, TokenDiff>;
+  radius:          Record<string, TokenDiff>;
+  fontSizes:       Record<string, TokenDiff>;
+  accessibility:   Record<string, AccessibilityDiff>;
+}
+
+interface TokenDiff {
+  before: string | number;
+  after:  string | number;
+}
+
+interface AccessibilityDiff {
+  before: { ratio: number; level: string };
+  after:  { ratio: number; level: string };
+}
+```
+
+Only changed tokens appear. If `spacing.md` is `12` in both themes, it will not appear in `diff.light.spacing`.
+
+---
+
+## Reading a diff
+
+```ts
+const diff = diffTheme(before, after);
+
+// Which colors changed in light mode?
+console.log(Object.keys(diff.light.colors));
+// ['primary', 'secondary', 'tertiary', 'quaternary', 'background', 'surface', ...]
+
+// What did primary change from and to?
+console.log(diff.light.colors.primary);
+// { before: 'oklch(0.55 0.18 220)', after: 'oklch(0.50 0.15 145)' }
+
+// Did any accessibility levels change?
+console.log(diff.light.accessibility);
+// { primaryOnBackground: { before: { ratio: 5.2, level: 'AA' }, after: { ratio: 4.8, level: 'AA' } } }
+
+// Did spacing change at all?
+console.log(Object.keys(diff.light.spacing));
+// [] — no spacing changes between two color-only changes
+```
+
+---
+
+## Printing a human-readable report
+
+A quick utility to turn a diff into readable output:
+
+```ts
+import { generateTheme, diffTheme } from 'salt-theme-gen';
+
+function printDiff(diff: ReturnType<typeof diffTheme>) {
+  for (const mode of ['light', 'dark'] as const) {
+    const m = diff[mode];
+    console.log(`\n── ${mode.toUpperCase()} MODE ──`);
+
+    if (Object.keys(m.colors).length) {
+      console.log('\nColors:');
+      for (const [k, v] of Object.entries(m.colors))
+        console.log(`  ${k}: ${v.before} → ${v.after}`);
+    }
+
+    if (Object.keys(m.accessibility).length) {
+      console.log('\nAccessibility:');
+      for (const [k, v] of Object.entries(m.accessibility))
+        console.log(`  ${k}: ${v.before.ratio.toFixed(1)} (${v.before.level}) → ${v.after.ratio.toFixed(1)} (${v.after.level})`);
+    }
+
+    if (Object.keys(m.spacing).length) {
+      console.log('\nSpacing:');
+      for (const [k, v] of Object.entries(m.spacing))
+        console.log(`  ${k}: ${v.before}px → ${v.after}px`);
+    }
+  }
+}
+
+const before = generateTheme({ preset: 'ocean' });
+const after  = generateTheme({ preset: 'forest' });
+printDiff(diffTheme(before, after));
+```
+
+Sample output:
+
+```
+── LIGHT MODE ──
+
+Colors:
+  primary:   oklch(0.55 0.18 220) → oklch(0.50 0.15 145)
+  secondary: oklch(0.58 0.14 40)  → oklch(0.55 0.12 310)
+  tertiary:  oklch(0.62 0.10 260) → oklch(0.58 0.09 185)
+  background: oklch(0.99 0.005 220) → oklch(0.99 0.005 145)
+  surface:    oklch(1.00 0.002 220) → oklch(1.00 0.002 145)
+
+Accessibility:
+  primaryOnBackground: 5.2 (AA) → 5.8 (AA)
+
+── DARK MODE ──
+
+Colors:
+  primary:   oklch(0.65 0.18 220) → oklch(0.62 0.15 145)
+  background: oklch(0.12 0.01 220) → oklch(0.12 0.01 145)
+```
+
+---
+
+## Use cases
+
+### Design review before deployment
+
+Generate the current production theme and the proposed new theme, diff them, and share the report with your designer:
+
+```ts
+// Current production
+const production = generateTheme({ preset: 'ocean' });
+
+// Proposed change
+const proposed = generateTheme({ preset: 'sapphire' });
+
+const diff = diffTheme(production, proposed);
+
+// Log or save to file for review
+```
+
+This answers "what exactly changes if we ship this?" before a single line of production code changes.
+
+---
+
+### A/B testing color variants
+
+Track which tokens differ between your A and B variants:
+
+```ts
+const variantA = generateTheme({ preset: 'ocean' });
+const variantB = generateTheme({ preset: 'peacock' });
+
+const diff = diffTheme(variantA, variantB);
+
+// If only primary and its derivatives differ, it's a clean A/B test
+// If background and surface also differ, it may affect layout perception
+const colorChanges = Object.keys(diff.light.colors);
+console.log(`${colorChanges.length} color tokens differ between variants`);
+```
+
+---
+
+### Verifying an adjustTheme() call
+
+After calling `adjustTheme()`, use `diffTheme()` to confirm only the tokens you intended to change actually changed:
+
+```ts
+import { generateTheme, adjustTheme, diffTheme } from 'salt-theme-gen';
+
+const base = generateTheme({ preset: 'ocean' });
+const adjusted = adjustTheme(base, {
+  light: { spacing: { md: 14 } },
+  dark:  { spacing: { md: 14 } },
+});
+
+const diff = diffTheme(base, adjusted);
+
+// Should only show spacing.md
+console.log(diff.light.spacing);
+// { md: { before: 12, after: 14 } }
+
+console.log(Object.keys(diff.light.colors));
+// [] — no color changes, as expected
+```
+
+This is a sanity check that your adjustment was surgical and didn't cause unexpected side effects.
+
+---
+
+### Accessibility regression check
+
+Check whether a theme change caused any contrast ratio to decrease:
+
+```ts
+const before = generateTheme({ preset: 'ocean' });
+const after  = generateTheme({ primary: '#1A6BB5' }); // custom color
+
+const diff = diffTheme(before, after);
+
+const regressions = Object.entries(diff.light.accessibility)
+  .filter(([, v]) => v.after.ratio < v.before.ratio)
+  .map(([k, v]) => ({
+    check: k,
+    before: v.before,
+    after: v.after,
+    dropped: (v.before.ratio - v.after.ratio).toFixed(2),
+  }));
+
+if (regressions.length) {
+  console.warn('Accessibility regressions detected:');
+  regressions.forEach(r =>
+    console.warn(`  ${r.check}: ${r.before.ratio} → ${r.after.ratio} (−${r.dropped})`),
+  );
+}
+```
+
+Add this to your CI pipeline to catch accessibility regressions before they ship.
+
+---
+
+### Migration audit
+
+You are migrating from a manually maintained token file to a `salt-theme-gen` generated theme. Use `diffTheme()` to see how far apart the two systems are:
+
+```ts
+// Your current manually maintained values, expressed as an adjustTheme override
+const legacy = adjustTheme(generateTheme({ preset: 'ocean' }), {
+  light: {
+    colors: {
+      primary:    '#2563EB',  // your current hardcoded values
+      secondary:  '#7C3AED',
+      background: '#FFFFFF',
+      surface:    '#F9FAFB',
+      text:       '#111827',
+      muted:      '#6B7280',
+      border:     '#E5E7EB',
+    },
+  },
+});
+
+// The generated equivalent
+const generated = generateTheme({ primary: '#2563EB' });
+
+const diff = diffTheme(legacy, generated);
+console.log('Tokens that differ from your legacy values:', diff.light.colors);
+```
+
+This tells you exactly which tokens would change if you adopted the generated theme, letting you evaluate the migration impact before committing.
+
+---
+
+## Diffing only one mode
+
+If you only care about light mode changes (common in design reviews):
+
+```ts
+const diff = diffTheme(before, after);
+
+// Ignore dark mode entirely
+const lightChanges = diff.light;
+```
+
+The `diff` always includes both modes, but you can destructure only what you need.
+
+---
+
+## What diffTheme does not tell you
+
+- **Visual impact** — a change from `oklch(0.55 0.18 220)` to `oklch(0.54 0.18 220)` technically shows up in the diff, but the visual difference is imperceptible. Numeric diff size does not map directly to perceived change.
+- **Cause of change** — the diff shows what changed, not why. That context lives in your `generateTheme()` call.
+- **Component-level impact** — if `surface` changes, every card is affected. The diff cannot tell you which components use which tokens.
+
+Use the diff as a starting point for a review conversation, not as a complete impact analysis.
+
+<div class="callout callout-tip">
+  <strong>Save diffs to version control:</strong> After each theme generation, serialize the diff against the previous version with <code>JSON.stringify(diff, null, 2)</code> and commit it alongside your theme file. Six months later, you'll have a complete audit trail of every token change and when it happened.
+</div>
