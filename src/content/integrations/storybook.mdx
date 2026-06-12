@@ -1,0 +1,452 @@
+---
+title: salt-theme-gen with Storybook
+description: Inject salt-theme-gen tokens into Storybook's preview — theme-aware stories, dark mode toolbar toggle, and consistent tokens between stories and your app.
+framework: Storybook
+pain: Your Storybook stories look completely different from your real app. The component renders with the right structure but wrong colors — because Storybook doesn't know about your CSS variables or theme context. You end up maintaining separate story styles that drift out of sync.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-storybook
+---
+
+## What you will build
+
+- CSS variables injected globally in Storybook's `preview.ts` — stories see the same tokens as your app
+- A dark mode toolbar button using `@storybook/addon-themes` or a custom decorator
+- A `withTheme` decorator that wraps every story in your theme provider
+- Token-aware stories that automatically update when the theme changes
+
+**Time required:** 15 minutes.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+npm install --save-dev @storybook/addon-themes
+```
+
+---
+
+## Step 1 — Inject CSS variables globally
+
+In `.storybook/preview.ts`, inject your theme CSS before stories render:
+
+```ts
+// .storybook/preview.ts
+import type { Preview } from '@storybook/react'; // or vue, svelte, etc.
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`--color-${kebab(k)}: ${v};`);
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`--surface-${k}: ${v};`);
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`--space-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`--radius-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`--text-${k}: ${v}px;`);
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`--state-${intent}-${state}: ${val};`);
+  return lines.join('\n  ');
+}
+
+// Inject theme CSS into the preview iframe's <head>
+const style = document.createElement('style');
+style.id = 'salt-theme';
+style.textContent = `
+  :root {
+    ${modeToVars(theme.light)}
+  }
+  :root[data-theme="dark"] {
+    ${modeToVars(theme.dark)}
+  }
+`;
+document.head.appendChild(style);
+
+// Also inject base styles
+const base = document.createElement('style');
+base.textContent = `
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-size: var(--text-md);
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+  }
+`;
+document.head.appendChild(base);
+
+const preview: Preview = {
+  parameters: {
+    backgrounds: { disable: true }, // we handle backgrounds via CSS vars
+  },
+};
+
+export default preview;
+```
+
+---
+
+## Step 2 — Dark mode toolbar toggle
+
+### Using @storybook/addon-themes
+
+Add the addon to `.storybook/main.ts`:
+
+```ts
+// .storybook/main.ts
+import type { StorybookConfig } from '@storybook/react-vite';
+
+const config: StorybookConfig = {
+  stories: ['../src/**/*.stories.@(ts|tsx|mdx)'],
+  addons: [
+    '@storybook/addon-links',
+    '@storybook/addon-essentials',
+    '@storybook/addon-themes',   // ← add this
+  ],
+  framework: '@storybook/react-vite',
+};
+
+export default config;
+```
+
+Configure theme switching in `preview.ts`:
+
+```ts
+import { withThemeByDataAttribute } from '@storybook/addon-themes';
+
+export const decorators = [
+  withThemeByDataAttribute({
+    themes: {
+      light: 'light',
+      dark:  'dark',
+    },
+    defaultTheme: 'light',
+    attributeName: 'data-theme',
+  }),
+];
+```
+
+`withThemeByDataAttribute` sets `data-theme="light"` or `data-theme="dark"` on the story's root element — exactly what your CSS targets. The toolbar shows a Light/Dark toggle button.
+
+### Custom decorator (no addon)
+
+If you prefer not to install the addon:
+
+```ts
+// .storybook/preview.ts
+import type { Decorator } from '@storybook/react';
+import { useEffect, useState } from 'react';
+
+const ThemeDecorator: Decorator = (Story) => {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
+
+  return (
+    <div style={{ padding: '1rem' }}>
+      <button
+        onClick={() => setIsDark(d => !d)}
+        style={{
+          marginBottom: '1rem',
+          background: 'none',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          padding: '4px 10px',
+          cursor: 'pointer',
+          color: 'var(--color-text)',
+          fontSize: 'var(--text-sm)',
+        }}
+      >
+        {isDark ? '☀ Light' : '◐ Dark'}
+      </button>
+      <Story />
+    </div>
+  );
+};
+
+export const decorators = [ThemeDecorator];
+```
+
+---
+
+## Step 3 — Theme context decorator
+
+If your app uses a React context for typed token access, wrap every story in the same provider:
+
+```tsx
+// .storybook/preview.tsx
+import type { Decorator } from '@storybook/react';
+import { ThemeProvider } from '../src/context/ThemeContext'; // your app's provider
+
+const ThemeProviderDecorator: Decorator = (Story) => (
+  <ThemeProvider>
+    <Story />
+  </ThemeProvider>
+);
+
+export const decorators = [
+  ThemeProviderDecorator,
+  withThemeByDataAttribute({ /* ... */ }),
+];
+```
+
+The decorator order matters — `ThemeProvider` wraps first, then `withThemeByDataAttribute` controls the `data-theme` attribute that the provider reads.
+
+---
+
+## Writing token-aware stories
+
+### Button story
+
+```tsx
+// src/components/Button/Button.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+import { Button } from './Button';
+
+const meta: Meta<typeof Button> = {
+  title:     'Components/Button',
+  component: Button,
+  tags: ['autodocs'],
+  parameters: {
+    docs: {
+      description: {
+        component: 'Primary action button. Uses `var(--color-primary)` and `var(--color-on-primary)` — updates automatically with theme.',
+      },
+    },
+  },
+};
+
+export default meta;
+type Story = StoryObj<typeof Button>;
+
+export const Primary: Story = {
+  args: { children: 'Save changes' },
+};
+
+export const Danger: Story = {
+  args: { children: 'Delete account', intent: 'danger' },
+};
+
+export const Disabled: Story = {
+  args: { children: 'Processing...', disabled: true },
+};
+
+// Story that shows all states at once
+export const AllStates: Story = {
+  render: () => (
+    <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+      <Button>Default</Button>
+      <Button disabled>Disabled</Button>
+      <Button intent="danger">Danger</Button>
+      <Button intent="success">Success</Button>
+    </div>
+  ),
+};
+```
+
+### Card story
+
+```tsx
+// src/components/Card/Card.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+import { Card } from './Card';
+
+const meta: Meta<typeof Card> = {
+  title:     'Components/Card',
+  component: Card,
+  tags: ['autodocs'],
+};
+
+export default meta;
+type Story = StoryObj<typeof Card>;
+
+export const Default: Story = {
+  args: {
+    title: 'Card title',
+    body:  'This card uses generated surface elevation and border tokens.',
+  },
+};
+
+export const WithFooter: Story = {
+  args: {
+    title: 'Card with action',
+    body:  'Footer slot for action buttons.',
+  },
+  render: (args) => (
+    <Card {...args}>
+      <div slot="footer" style={{ marginTop: 'var(--space-md)' }}>
+        <button style={{
+          background: 'var(--color-primary)',
+          color: 'var(--color-on-primary)',
+          border: 'none',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-sm) var(--space-lg)',
+          cursor: 'pointer',
+        }}>
+          Learn more
+        </button>
+      </div>
+    </Card>
+  ),
+};
+```
+
+### Token showcase story
+
+A story that displays all semantic colors — useful as a living style guide:
+
+```tsx
+// src/stories/TokenShowcase.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+
+function TokenGrid() {
+  const colors = [
+    { name: 'primary',    label: 'Primary' },
+    { name: 'secondary',  label: 'Secondary' },
+    { name: 'tertiary',   label: 'Tertiary' },
+    { name: 'quaternary', label: 'Quaternary' },
+    { name: 'danger',     label: 'Danger' },
+    { name: 'success',    label: 'Success' },
+    { name: 'warning',    label: 'Warning' },
+    { name: 'info',       label: 'Info' },
+  ];
+
+  return (
+    <div style={{ padding: 'var(--space-xl)', display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
+      <div>
+        <h2 style={{ color: 'var(--color-text)', fontSize: 'var(--text-lg)', marginBottom: 'var(--space-md)' }}>
+          Intent colors
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-sm)' }}>
+          {colors.map(({ name, label }) => (
+            <div key={name}>
+              <div style={{
+                height: 64,
+                backgroundColor: `var(--color-${name})`,
+                borderRadius: 'var(--radius-md)',
+                marginBottom: 'var(--space-xs)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: `var(--color-on-${name})`,
+                fontSize: 'var(--text-xs)',
+                fontWeight: 600,
+              }}>
+                {label}
+              </div>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', margin: 0 }}>
+                --color-{name}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 style={{ color: 'var(--color-text)', fontSize: 'var(--text-lg)', marginBottom: 'var(--space-md)' }}>
+          Surfaces
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-sm)' }}>
+          {['background', 'surface'].map(name => (
+            <div key={name}>
+              <div style={{
+                height: 64,
+                backgroundColor: `var(--color-${name})`,
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: 'var(--space-xs)',
+              }} />
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', margin: 0 }}>
+                --color-{name}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const meta: Meta = {
+  title: 'Design System/Token Showcase',
+  tags: ['autodocs'],
+};
+
+export default meta;
+
+export const Colors: StoryObj = {
+  render: () => <TokenGrid />,
+};
+```
+
+---
+
+## Storybook 8 configuration reference
+
+```ts
+// .storybook/preview.ts — complete file for Storybook 8
+import type { Preview, Decorator } from '@storybook/react';
+import { withThemeByDataAttribute } from '@storybook/addon-themes';
+import { ThemeProvider } from '../src/context/ThemeContext';
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+// --- CSS injection (same as Step 1) ---
+const theme = generateTheme({ preset: 'ocean' });
+// ... modeToVars + document.head.appendChild (from Step 1)
+
+// --- Decorators ---
+export const decorators: Decorator[] = [
+  (Story) => <ThemeProvider><Story /></ThemeProvider>,
+  withThemeByDataAttribute({
+    themes: { light: 'light', dark: 'dark' },
+    defaultTheme: 'light',
+    attributeName: 'data-theme',
+  }),
+];
+
+// --- Parameters ---
+const preview: Preview = {
+  parameters: {
+    controls: { matchers: { color: /(background|color)$/i } },
+    backgrounds: { disable: true },
+    layout: 'padded',
+  },
+};
+
+export default preview;
+```
+
+---
+
+## Checklist
+
+- `@storybook/addon-themes` installed and added to `addons` in `main.ts` ✓
+- CSS variables injected in `preview.ts` before story render ✓
+- `withThemeByDataAttribute` decorator sets `data-theme` ✓
+- `ThemeProvider` decorator wraps stories that need typed token access ✓
+- `backgrounds: { disable: true }` so Storybook's built-in backgrounds don't conflict ✓
+- Token showcase story serves as a living style guide ✓
+
+<div class="callout callout-tip">
+  <strong>Chromatic visual testing:</strong> If you use Chromatic for visual regression testing, your stories automatically capture both light and dark variants when the theme toggle is set up. Run the Dark story variant explicitly by adding <code>globals: &#123; theme: 'dark' &#125;</code> to individual story parameters.
+</div>
