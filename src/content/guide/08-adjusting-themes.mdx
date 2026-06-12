@@ -1,0 +1,291 @@
+---
+title: Adjusting Themes
+description: Use adjustTheme() to override specific tokens after generation — fine-tune a preset without abandoning the system.
+order: 8
+pain: The preset is 95% right but the primary blue is slightly too dark, or the card surface needs to be a touch warmer. You either accept the compromise or abandon the whole system and go back to hardcoding.
+---
+
+## The 95% problem
+
+Presets and custom hex colors cover most cases well. But design is precise. A generated primary might be `oklch(0.55 0.18 220)` when your brand standard is `oklch(0.52 0.20 218)`. Close — but not exact.
+
+Without an escape hatch, your only options are:
+- Accept the generated value (compromise)
+- Use your exact hex as the primary input (then lose the curated preset relationships)
+- Maintain a separate override layer in CSS (defeats the purpose of a system)
+
+`adjustTheme()` is the escape hatch. It applies targeted overrides to an already-generated theme, producing a new theme object with your changes merged in.
+
+---
+
+## Basic usage
+
+```ts
+import { generateTheme, adjustTheme } from 'salt-theme-gen';
+
+const base = generateTheme({ preset: 'ocean' });
+
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: {
+      primary: 'oklch(0.52 0.20 218)',  // your exact value
+    },
+  },
+});
+```
+
+`adjusted` is a new `GeneratedTheme` object. The original `base` is not mutated. Every field you do not specify in the overrides comes through from `base` unchanged.
+
+---
+
+## What you can adjust
+
+`adjustTheme()` accepts a deep partial of `GeneratedTheme`. Any field at any depth can be overridden:
+
+```ts
+adjustTheme(base, {
+  light: {
+    colors: { ... },          // any SemanticColors field
+    states: {
+      primary: { hover: '...' },  // any specific state
+    },
+    surfaceElevation: { ... }, // any elevation level
+    spacing: { md: 14 },       // specific spacing step
+    radius: { pill: 9999 },    // specific radius step
+    fontSizes: { '3xl': 42 },  // specific font size step
+  },
+  dark: {
+    colors: { ... },           // dark mode overrides
+  },
+});
+```
+
+You only specify what you want to change. Everything else remains as generated.
+
+---
+
+## Common adjustment patterns
+
+### Fine-tuning the primary color
+
+The most common use case: the preset is right in character but the exact OKLCH value is off.
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: { primary: 'oklch(0.52 0.20 218)' },
+  },
+  dark: {
+    colors: { primary: 'oklch(0.68 0.20 218)' },
+  },
+});
+```
+
+Note that adjusting `primary` does **not** automatically recompute `onPrimary`, `states.primary`, or the accessibility report. If you change `primary` significantly, adjust the related tokens too:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: {
+      primary: 'oklch(0.52 0.20 218)',
+      onPrimary: 'oklch(0.99 0.005 218)',  // keep it readable
+    },
+    states: {
+      primary: {
+        hover:    'oklch(0.58 0.20 218)',
+        pressed:  'oklch(0.46 0.20 218)',
+        focused:  'oklch(0.62 0.20 218)',
+        disabled: 'oklch(0.72 0.06 218)',
+      },
+    },
+  },
+});
+```
+
+### Overriding the surface color
+
+Sometimes you want a warmer or cooler card background than what the preset generates:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: {
+      surface: 'oklch(0.97 0.008 60)',  // warm cream instead of cool white
+    },
+  },
+});
+```
+
+### Adjusting a single spacing step
+
+Your design calls for `md` spacing of 14px instead of the default 12px:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    spacing: { md: 14 },
+  },
+  dark: {
+    spacing: { md: 14 },  // scales are mode-independent, adjust both
+  },
+});
+```
+
+### Overriding the danger color
+
+Your product uses a specific red that is part of the brand:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: {
+      danger:   '#DC2626',              // exact brand red
+      onDanger: 'oklch(0.99 0.01 25)',  // near-white for legibility
+    },
+  },
+  dark: {
+    colors: {
+      danger:   '#EF4444',              // lighter for dark backgrounds
+      onDanger: 'oklch(0.10 0.02 25)',
+    },
+  },
+});
+```
+
+### Adding a brand-specific border radius
+
+Your design system specifies `6px` for inputs and `12px` for cards, but no other values:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: { radius: { sm: 6, md: 12 } },
+  dark:  { radius: { sm: 6, md: 12 } },
+});
+```
+
+---
+
+## Adjustments and the accessibility report
+
+`adjustTheme()` does **not** rerun the WCAG contrast checks. The `accessibility` field in the adjusted theme reflects the values from the base generation — not the adjusted colors.
+
+This is intentional: `adjustTheme()` is a targeted override tool, not a re-generation. If your overrides change contrast-critical colors, verify the adjusted pairs manually:
+
+```ts
+import { contrastRatio } from 'salt-theme-gen';
+
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: { primary: 'oklch(0.52 0.20 218)' },
+  },
+});
+
+// Verify the adjusted primary yourself
+const ratio = contrastRatio(
+  adjusted.light.colors.primary,
+  adjusted.light.colors.background,
+);
+console.log(ratio); // { ratio: 5.4, level: 'AA' }
+```
+
+`contrastRatio()` accepts any two OKLCH, hex, or CSS color strings and returns the same `{ ratio, level }` shape as the accessibility report entries.
+
+---
+
+## Chaining adjustments
+
+`adjustTheme()` returns a new `GeneratedTheme`, so you can chain calls:
+
+```ts
+const base     = generateTheme({ preset: 'ocean' });
+const step1    = adjustTheme(base,  { light: { colors: { primary: '...' } } });
+const step2    = adjustTheme(step1, { light: { spacing: { md: 14 } } });
+const final    = adjustTheme(step2, { dark:  { colors: { background: '...' } } });
+```
+
+Each call is non-mutating. You can branch from any intermediate result:
+
+```ts
+const base      = generateTheme({ preset: 'ocean' });
+const brandRed  = adjustTheme(base, { light: { colors: { danger: '#DC2626' } } });
+const brandBlue = adjustTheme(base, { light: { colors: { danger: '#1D4ED8' } } });
+// base is unchanged — two variants from the same root
+```
+
+---
+
+## When to use adjustTheme vs regenerating
+
+| Situation | Use |
+| --------- | --- |
+| Exact brand primary that isn't a preset | `generateTheme({ primary: '#hex' })` |
+| Preset is right but one token is off | `adjustTheme()` |
+| Need to match a specific Figma color | `generateTheme({ primary: '#hex' })` |
+| Post-design-review tweaks to a generated theme | `adjustTheme()` |
+| A/B testing color variants | `adjustTheme()` from a shared base |
+| Complete rebrand | `generateTheme()` with new input |
+| Minor spacing adjustment | `adjustTheme()` |
+
+The mental model: **generate for broad decisions, adjust for precision**.
+
+---
+
+## Adjustments in a CSS variable pipeline
+
+If you are using the CSS variable approach (recommended for web), `adjustTheme()` fits naturally into the same pipeline:
+
+```ts
+import { generateTheme, adjustTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+const base = generateTheme({ preset: 'ocean' });
+
+const theme = adjustTheme(base, {
+  light: {
+    colors: { primary: 'oklch(0.52 0.20 218)' },
+    spacing: { md: 14 },
+  },
+  dark: {
+    colors: { primary: 'oklch(0.68 0.20 218)' },
+    spacing: { md: 14 },
+  },
+});
+
+// The rest of your CSS generation pipeline is identical
+function modeToVars(mode: GeneratedThemeMode): string {
+  // ... same as Chapter 2
+}
+
+export const themeCSS = `
+:root { ${modeToVars(theme.light)} }
+@media (prefers-color-scheme: dark) { :root { ${modeToVars(theme.dark)} } }
+`.trim();
+```
+
+`adjustTheme()` returns the same `GeneratedTheme` shape. Nothing downstream needs to change.
+
+---
+
+## Preserving adjustments across preset changes
+
+If you want to build a system where the preset can change but certain overrides are always applied (for example, your brand always uses 14px as the `md` spacing), wrap the generation and adjustment together:
+
+```ts
+function buildTheme(preset: string) {
+  const base = generateTheme({ preset, spacing: 'default' });
+  return adjustTheme(base, {
+    light: { spacing: { md: 14 } },
+    dark:  { spacing: { md: 14 } },
+  });
+}
+
+const oceanTheme  = buildTheme('ocean');
+const forestTheme = buildTheme('forest');
+// Both always have md spacing = 14px, regardless of the preset default
+```
+
+This pattern is useful for teams that have non-negotiable brand constraints (a specific border radius, a specific spacing value from a design system) but want to explore multiple color presets.
+
+<div class="callout callout-note">
+  <strong>Remember:</strong> <code>adjustTheme()</code> does not recompute derived tokens. If you override <code>primary</code>, also override <code>onPrimary</code> and the <code>states.primary</code> entries if the hue or lightness shift is significant. For small tweaks (1–2 OKLCH lightness units), the base-generated values usually remain correct.
+</div>
