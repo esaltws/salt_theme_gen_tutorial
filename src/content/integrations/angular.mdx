@@ -1,0 +1,440 @@
+---
+title: salt-theme-gen with Angular
+description: Inject theme tokens via Angular's DOCUMENT token and a ThemeService — CSS variables, dark mode toggle, and typed token access with Angular signals.
+framework: Angular
+pain: Angular's component encapsulation scopes styles to each component, so sharing design tokens means either ViewEncapsulation.None everywhere, a global SCSS file that grows out of control, or duplicating color values across component stylesheets. There is no clean system.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-angular
+---
+
+## What you will build
+
+- CSS variables injected into `:root` once at app bootstrap via Angular's `DOCUMENT` token
+- A `ThemeService` with dark mode toggle, `localStorage` persistence, and Angular signals
+- `ViewEncapsulation.None` avoided — tokens work inside encapsulated components via CSS variables
+- Full TypeScript integration with typed token access
+
+**Time required:** 20 minutes.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+---
+
+## Step 1 — Generate theme
+
+Create `src/app/core/theme.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`  --color-${kebab(k)}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`  --surface-${k}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`  --space-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`  --radius-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`  --text-${k}: ${v}px;`);
+
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`  --state-${intent}-${state}: ${val};`);
+
+  return lines.join('\n');
+}
+
+export const lightVars = modeToVars(theme.light);
+export const darkVars  = modeToVars(theme.dark);
+
+export const themeCSS = `
+:root {
+${lightVars}
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+${darkVars}
+  }
+}
+:root[data-theme="dark"]  {
+${darkVars}
+}
+:root[data-theme="light"] {
+${lightVars}
+}
+`.trim();
+```
+
+---
+
+## Step 2 — ThemeService
+
+Create `src/app/core/theme.service.ts`:
+
+```ts
+import { Injectable, inject, signal, effect, DOCUMENT } from '@angular/core';
+import { theme, themeCSS } from './theme';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+@Injectable({ providedIn: 'root' })
+export class ThemeService {
+  private readonly doc = inject(DOCUMENT);
+
+  readonly mode = signal<ThemeMode>(
+    (localStorage.getItem('theme') as ThemeMode) ?? 'system',
+  );
+
+  readonly isDark = signal<boolean>(false);
+
+  readonly tokens = signal<GeneratedThemeMode>(theme.light);
+
+  constructor() {
+    // Inject CSS variables once
+    this.injectCSS();
+
+    // Apply saved preference
+    this.applyMode(this.mode());
+
+    // React to mode changes
+    effect(() => {
+      const m = this.mode();
+      this.applyMode(m);
+      localStorage.setItem('theme', m);
+    });
+
+    // Listen for OS preference changes
+    const mq = this.doc.defaultView?.matchMedia('(prefers-color-scheme: dark)');
+    mq?.addEventListener('change', () => {
+      if (this.mode() === 'system') this.applyMode('system');
+    });
+  }
+
+  toggle(): void {
+    this.mode.set(this.isDark() ? 'light' : 'dark');
+  }
+
+  private applyMode(m: ThemeMode): void {
+    const dark =
+      m === 'dark' ||
+      (m === 'system' &&
+        !!this.doc.defaultView?.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    this.isDark.set(dark);
+    this.tokens.set(dark ? theme.dark : theme.light);
+    this.doc.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  }
+
+  private injectCSS(): void {
+    const existing = this.doc.getElementById('salt-theme');
+    if (existing) return;
+
+    const style = this.doc.createElement('style');
+    style.id = 'salt-theme';
+    style.textContent = themeCSS;
+    this.doc.head.appendChild(style);
+  }
+}
+```
+
+`ThemeService` is `providedIn: 'root'` — it is a singleton, instantiated once on app bootstrap. The CSS injection happens in the constructor, so variables are available before any component renders.
+
+---
+
+## Step 3 — Bootstrap with service
+
+In `src/main.ts`, ensure the service is instantiated at startup:
+
+```ts
+import { bootstrapApplication } from '@angular/platform-browser';
+import { AppComponent } from './app/app.component';
+import { ThemeService } from './app/core/theme.service';
+import { inject } from '@angular/core';
+
+bootstrapApplication(AppComponent, {
+  providers: [],
+}).then(appRef => {
+  // Eagerly instantiate ThemeService so CSS is injected before first render
+  appRef.injector.get(ThemeService);
+});
+```
+
+With `providedIn: 'root'`, Angular creates the service lazily by default. The `appRef.injector.get()` call forces immediate instantiation.
+
+---
+
+## Step 4 — Global base styles
+
+In `src/styles.css` (Angular's global stylesheet):
+
+```css
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--state-primary-hover); }
+```
+
+---
+
+## Step 5 — ThemeToggle component
+
+```ts
+// src/app/components/theme-toggle/theme-toggle.component.ts
+import { Component, inject } from '@angular/core';
+import { ThemeService } from '../../core/theme.service';
+
+@Component({
+  selector: 'app-theme-toggle',
+  standalone: true,
+  template: `
+    <button (click)="theme.toggle()" [attr.aria-label]="'Switch to ' + (theme.isDark() ? 'light' : 'dark') + ' mode'">
+      {{ theme.isDark() ? '☀ Light' : '◐ Dark' }}
+    </button>
+  `,
+  styles: [`
+    button {
+      background: none;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 6px 10px;
+      cursor: pointer;
+      color: var(--color-text);
+      font-size: var(--text-sm);
+      transition: border-color 0.15s;
+    }
+    button:hover { border-color: var(--color-primary); }
+  `],
+})
+export class ThemeToggleComponent {
+  readonly theme = inject(ThemeService);
+}
+```
+
+---
+
+## Using tokens in components
+
+### Via CSS variables in component stylesheets
+
+Angular's default `ViewEncapsulation.Emulated` scopes component styles to that component's elements — but CSS custom properties pierce the shadow boundary. Variables defined on `:root` are inherited by all elements regardless of encapsulation:
+
+```ts
+@Component({
+  selector: 'app-button',
+  standalone: true,
+  template: `
+    <button class="btn" [class.btn--danger]="intent === 'danger'" [disabled]="disabled">
+      <ng-content />
+    </button>
+  `,
+  styles: [`
+    .btn {
+      background: var(--color-primary);
+      color: var(--color-on-primary);
+      border: none;
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-lg);
+      font-size: var(--text-md);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover   { background: var(--state-primary-hover); }
+    .btn:active  { background: var(--state-primary-pressed); }
+    .btn:focus-visible {
+      outline: 2px solid var(--state-primary-focused);
+      outline-offset: 2px;
+    }
+    .btn:disabled {
+      background: var(--state-primary-disabled);
+      cursor: not-allowed;
+    }
+    .btn--danger {
+      background: var(--color-danger);
+      color: var(--color-on-danger);
+    }
+    .btn--danger:hover { background: var(--state-danger-hover); }
+  `],
+})
+export class ButtonComponent {
+  @Input() intent: 'primary' | 'danger' = 'primary';
+  @Input() disabled = false;
+}
+```
+
+### Via typed tokens from ThemeService
+
+```ts
+@Component({
+  selector: 'app-status-badge',
+  standalone: true,
+  template: `
+    <span [ngStyle]="badgeStyle()">{{ status }}</span>
+  `,
+  imports: [NgStyle],
+})
+export class StatusBadgeComponent {
+  @Input() status: 'success' | 'danger' | 'warning' = 'success';
+
+  private readonly themeService = inject(ThemeService);
+
+  badgeStyle = computed(() => {
+    const mode = this.themeService.tokens();
+    const bg = mode.colors[this.status];
+    const onKey = `on${this.status.charAt(0).toUpperCase()}${this.status.slice(1)}` as keyof typeof mode.colors;
+    return {
+      backgroundColor: bg,
+      color: mode.colors[onKey],
+      borderRadius: `${mode.radius.pill}px`,
+      padding: `${mode.spacing.xs}px ${mode.spacing.md}px`,
+      fontSize: `${mode.fontSizes.xs}px`,
+      fontWeight: '600',
+    };
+  });
+}
+```
+
+`computed()` re-runs whenever `themeService.tokens()` changes — the badge updates automatically on dark mode toggle.
+
+---
+
+## Card component
+
+```ts
+@Component({
+  selector: 'app-card',
+  standalone: true,
+  template: `
+    <article class="card">
+      <h3 class="card-title">{{ title }}</h3>
+      <p class="card-body">{{ body }}</p>
+      <ng-content select="[footer]" />
+    </article>
+  `,
+  styles: [`
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      transition: border-color 0.15s;
+    }
+    .card:hover { border-color: var(--color-primary); }
+    .card-title {
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--color-text);
+      margin: 0 0 var(--space-sm);
+    }
+    .card-body {
+      font-size: var(--text-md);
+      color: var(--color-muted);
+      line-height: 1.7;
+      margin: 0;
+    }
+  `],
+})
+export class CardComponent {
+  @Input() title = '';
+  @Input() body  = '';
+}
+```
+
+---
+
+## Angular SSR (Universal)
+
+If you use Angular SSR (`@angular/ssr`), the `DOCUMENT` token resolves to the server-side document. The `ThemeService` still works, but `localStorage` is not available on the server.
+
+Guard localStorage access:
+
+```ts
+import { isPlatformBrowser } from '@angular/common';
+import { PLATFORM_ID } from '@angular/core';
+
+@Injectable({ providedIn: 'root' })
+export class ThemeService {
+  private readonly platformId = inject(PLATFORM_ID);
+
+  private getSavedMode(): ThemeMode {
+    if (isPlatformBrowser(this.platformId)) {
+      return (localStorage.getItem('theme') as ThemeMode) ?? 'system';
+    }
+    return 'system'; // fallback for server render
+  }
+}
+```
+
+For true SSR dark mode without flash, combine this with a cookie read in your Express server — similar to the Remix cookie approach.
+
+---
+
+## File structure summary
+
+```
+src/
+├── styles.css                          ← token-based global styles
+├── main.ts                             ← eager ThemeService instantiation
+└── app/
+    ├── core/
+    │   ├── theme.ts                    ← generateTheme() + CSS var export
+    │   └── theme.service.ts            ← signal-based service
+    └── components/
+        ├── theme-toggle/
+        │   └── theme-toggle.component.ts
+        ├── button/
+        │   └── button.component.ts
+        └── card/
+            └── card.component.ts
+```
+
+---
+
+## Checklist
+
+- `src/app/core/theme.ts` generates and exports `themeCSS` ✓
+- `ThemeService` injects CSS via `DOCUMENT` token in constructor ✓
+- `main.ts` eagerly instantiates `ThemeService` ✓
+- `styles.css` uses `var(--color-background)` on body ✓
+- `ThemeToggleComponent` calls `theme.toggle()` ✓
+- Component stylesheets use CSS variables — encapsulation does not block `:root` inheritance ✓
+
+<div class="callout callout-note">
+  <strong>Angular 19 + signals:</strong> This guide uses Angular signals (<code>signal()</code>, <code>computed()</code>, <code>effect()</code>) which are stable in Angular 17+. If you are on Angular 16 or earlier, replace signals with <code>BehaviorSubject</code> and <code>Observable</code> from RxJS — the CSS variable injection approach is identical.
+</div>
