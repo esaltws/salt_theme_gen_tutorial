@@ -1,0 +1,367 @@
+---
+title: Design Scale Presets
+description: Master the spacing, radius, and font size scales — exact values, visual effects, and how to combine them for any product personality.
+order: 5
+pain: You pick spacing values by gut feel, copy pixel numbers from Figma, and end up with 47 different padding values across your app. Nothing feels intentional. The layout has no rhythm.
+---
+
+## What scales are
+
+Scales are the non-color dimension of your design system. While colors define identity, scales define **feel** — how tight or spacious the layout breathes, how sharp or soft the edges are, how large or small the text reads.
+
+`salt-theme-gen` provides three independent scales, each with preset options:
+
+```ts
+generateTheme({
+  preset: 'ocean',
+  spacing: 'default',   // 'compact' | 'default' | 'spacious'
+  radius:  'default',   // 'none' | 'sm' | 'default' | 'lg' | 'pill'
+  fontSize: 'default',  // 'small' | 'default' | 'large'
+})
+```
+
+They are completely independent. You can combine any spacing with any radius and any font size.
+
+---
+
+## Spacing scale
+
+Spacing controls all gap, padding, and margin values in your system. Six named steps cover the full range from tight component internals to section-level breathing room.
+
+### Spacing preset values (in px)
+
+| Token | `compact` | `default` | `spacious` |
+| ----- | --------- | --------- | ---------- |
+| `xs`  | 2         | 4         | 6          |
+| `sm`  | 4         | 8         | 12         |
+| `md`  | 8         | 12        | 20         |
+| `lg`  | 12        | 16        | 28         |
+| `xl`  | 16        | 24        | 40         |
+| `xxl` | 24        | 40        | 64         |
+
+### Reading the table
+
+- `md` is the **base unit** — button padding, card internal spacing, form field padding.
+- `sm` is for **tight internals** — icon gaps, badge padding, list item gaps.
+- `lg` is for **component separation** — space between a label and its input, between a heading and a paragraph.
+- `xl` is for **section internals** — card padding, sidebar padding.
+- `xxl` is for **section separation** — vertical rhythm between major page sections.
+
+### `compact` — dense, information-rich layouts
+
+Use when you need to show maximum content per screen. Common in:
+- Admin dashboards and data tables
+- Developer tools and terminals
+- IDE sidebars and toolbars
+- Financial applications with many numbers per row
+
+```css
+/* compact: button padding */
+padding: var(--space-sm) var(--space-md); /* 4px 8px */
+```
+
+### `default` — balanced, general-purpose
+
+The safe starting point for any product. Works for:
+- SaaS applications
+- Documentation sites
+- Most consumer web apps
+- E-commerce
+
+```css
+/* default: button padding */
+padding: var(--space-sm) var(--space-lg); /* 8px 16px */
+```
+
+### `spacious` — generous, editorial layouts
+
+Use when you want the layout to breathe and content to feel premium. Common in:
+- Marketing and landing pages
+- Editorial and content-first sites
+- Luxury or premium product pages
+- Mobile-first apps where touch targets need extra room
+
+```css
+/* spacious: button padding */
+padding: var(--space-sm) var(--space-lg); /* 12px 28px */
+```
+
+### Spacing in practice
+
+```css
+/* The same CSS works across all spacing presets */
+.card {
+  padding: var(--space-xl);
+  gap: var(--space-md);
+}
+
+.form-field {
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.page-section {
+  padding: var(--space-xxl) 0;
+}
+```
+
+Change `spacing: 'compact'` to `spacing: 'spacious'` in your `generateTheme()` call, regenerate your CSS variables, and every one of these values updates automatically. Your component CSS never changes.
+
+---
+
+## Radius scale
+
+Radius controls border rounding across your entire interface. Seven steps from perfectly sharp to fully pill-shaped.
+
+### Radius preset values (in px)
+
+| Token  | `none` | `sm` | `default` | `lg` | `pill` |
+| ------ | ------ | ---- | --------- | ---- | ------ |
+| `none` | 0      | 0    | 0         | 0    | 0      |
+| `sm`   | 0      | 2    | 4         | 6    | 4      |
+| `md`   | 0      | 4    | 8         | 12   | 9999   |
+| `lg`   | 0      | 6    | 14        | 20   | 9999   |
+| `xl`   | 0      | 8    | 20        | 28   | 9999   |
+| `xxl`  | 0      | 10   | 28        | 36   | 9999   |
+| `pill` | 0      | 9999 | 9999      | 9999 | 9999   |
+
+The `pill` preset sets most sizes to `9999px` — anything short enough becomes fully rounded. Only the `none` column is always 0.
+
+### `none` — sharp edges, zero rounding
+
+Every element is rectangular. Reads as technical, precise, rigorous. Common in:
+- Terminal and CLI interfaces
+- Code editors and developer tools
+- Financial data products
+- Brutalist or editorial design aesthetics
+
+```css
+/* Borders are always rectangular */
+.btn { border-radius: var(--radius-md); } /* → 0px */
+.card { border-radius: var(--radius-lg); } /* → 0px */
+```
+
+### `sm` — subtle rounding, mostly sharp
+
+Very light rounding on smaller elements. Large elements remain near-rectangular. Reads as professional with a slight softness. Common in:
+- Enterprise SaaS
+- Productivity software
+- B2B tools
+
+### `default` — balanced, broadly appropriate
+
+The most versatile choice. Small elements (inputs, tags) get subtle rounding. Large elements (cards, modals) get noticeable but not exaggerated rounding. Common in:
+- Most web applications
+- Documentation
+- Component libraries
+
+```css
+.tag    { border-radius: var(--radius-sm); }  /* 4px */
+.btn    { border-radius: var(--radius-md); }  /* 8px */
+.card   { border-radius: var(--radius-lg); }  /* 14px */
+.modal  { border-radius: var(--radius-xl); }  /* 20px */
+```
+
+### `lg` — confident, modern rounding
+
+Noticeably rounded at all sizes. Reads as contemporary and friendly. Common in:
+- Consumer mobile apps
+- Startup landing pages
+- Modern SaaS products targeting non-technical users
+
+### `pill` — soft, fully rounded
+
+Buttons, inputs, and chips become stadium-shaped. Cards and modals have significant rounding. Reads as playful, friendly, consumer-oriented. Common in:
+- Social apps
+- Health and wellness
+- Fintech consumer apps (Revolut-style)
+- Mobile-first experiences
+
+```css
+.btn    { border-radius: var(--radius-md); }  /* 9999px → stadium */
+.tag    { border-radius: var(--radius-sm); }  /* 9999px → fully rounded */
+.card   { border-radius: var(--radius-xl); }  /* 9999px → large rounded */
+```
+
+### Mixing radius with element size
+
+The `pill` token (`9999px`) creates a stadium shape on any element. Use it for:
+- Pill buttons
+- Rounded badges
+- Tag chips
+- Avatar crops
+
+```css
+.avatar {
+  border-radius: var(--radius-pill); /* always fully circular for square elements */
+}
+```
+
+---
+
+## Font size scale
+
+Font sizes follow a modular scale based on a ~1.25 ratio. Seven named steps from caption to hero heading.
+
+### Font size preset values (in px)
+
+| Token | `small` | `default` | `large` |
+| ----- | ------- | --------- | ------- |
+| `xs`  | 10      | 11        | 12      |
+| `sm`  | 11      | 13        | 14      |
+| `md`  | 13      | 15        | 17      |
+| `lg`  | 15      | 18        | 21      |
+| `xl`  | 18      | 22        | 26      |
+| `xxl` | 22      | 28        | 34      |
+| `3xl` | 30      | 38        | 48      |
+
+### `small` — compact, dense text
+
+Appropriate for:
+- Admin interfaces with dense data
+- Developer tools (IDE-like UIs)
+- Secondary content in information-rich UIs
+- Mobile-first apps where screen real estate is limited
+
+```css
+body { font-size: var(--text-md); } /* → 13px */
+h1   { font-size: var(--text-3xl); } /* → 30px */
+```
+
+### `default` — universal baseline
+
+Readable for most users on most screens. Suitable for:
+- Any web application without a strong reason to go larger or smaller
+- Documentation and instructional content
+- Marketing sites
+
+```css
+body { font-size: var(--text-md); } /* → 15px */
+h1   { font-size: var(--text-3xl); } /* → 38px */
+```
+
+### `large` — accessible, editorial
+
+Generous text sizes for:
+- Accessibility-focused products (older audiences, vision accessibility)
+- Marketing sites where text is hero content
+- Long-form editorial and blog content
+- TV/large-screen interfaces
+
+```css
+body { font-size: var(--text-md); } /* → 17px */
+h1   { font-size: var(--text-3xl); } /* → 48px */
+```
+
+### A practical type scale
+
+Apply the scale to semantic HTML elements once in your global styles:
+
+```css
+h1, .text-3xl { font-size: var(--text-3xl); line-height: 1.1; }
+h2, .text-xxl { font-size: var(--text-xxl); line-height: 1.2; }
+h3, .text-xl  { font-size: var(--text-xl);  line-height: 1.3; }
+h4, .text-lg  { font-size: var(--text-lg);  line-height: 1.4; }
+p,  .text-md  { font-size: var(--text-md);  line-height: 1.75; }
+small, .text-sm { font-size: var(--text-sm); line-height: 1.6; }
+.text-xs      { font-size: var(--text-xs);  line-height: 1.5; }
+```
+
+Every `font-size` in your UI now comes from the same seven steps. No more rogue `14px` or `17px` values scattered across components.
+
+---
+
+## Combining scales — personality matrix
+
+The real power of independent scales is the personality you create by combining them. Here are common combinations:
+
+### Corporate / enterprise B2B
+
+```ts
+generateTheme({ preset: 'sapphire', spacing: 'compact', radius: 'none', fontSize: 'small' })
+```
+Sharp edges, dense information, small text. Reads as serious and data-focused.
+
+---
+
+### Modern SaaS (Linear, Vercel-style)
+
+```ts
+generateTheme({ preset: 'ocean', spacing: 'default', radius: 'default', fontSize: 'default' })
+```
+Balanced in every dimension. Professional but not stiff. The most common combination.
+
+---
+
+### Consumer mobile app
+
+```ts
+generateTheme({ preset: 'aurora', spacing: 'spacious', radius: 'pill', fontSize: 'large' })
+```
+Generous spacing, full rounding, large touch-friendly text. Every element feels approachable.
+
+---
+
+### Editorial / content-first
+
+```ts
+generateTheme({ preset: 'desert', spacing: 'spacious', radius: 'sm', fontSize: 'large' })
+```
+Lots of breathing room, minimal rounding, generous text. The layout gets out of the way of the content.
+
+---
+
+### Developer tool / terminal-adjacent
+
+```ts
+generateTheme({ preset: 'midnight', spacing: 'compact', radius: 'none', fontSize: 'small' })
+```
+Dark, dense, sharp. Everything signals precision and control.
+
+---
+
+### Startup landing page
+
+```ts
+generateTheme({ preset: 'sunset', spacing: 'spacious', radius: 'lg', fontSize: 'default' })
+```
+Energetic color, generous layout, noticeable rounding. Designed to impress at first scroll.
+
+---
+
+## Switching scales at runtime
+
+Scales are defined once at theme generation time — they are not dynamic. If you want runtime scale switching (for example, a user-controlled density preference), generate multiple themes and swap the CSS variable block:
+
+```ts
+const compact  = generateTheme({ preset: 'ocean', spacing: 'compact' });
+const spacious = generateTheme({ preset: 'ocean', spacing: 'spacious' });
+
+// Swap on user preference change
+function applyDensity(dense: boolean) {
+  const vars = dense
+    ? compactSpacingVars(compact.light)
+    : spaciousSpacingVars(spacious.light);
+  document.documentElement.style.cssText += vars;
+}
+```
+
+For most products this is unnecessary — pick a scale at build time and commit to it. But the option exists.
+
+---
+
+## What scales do not control
+
+Scales control spacing, radius, and font size **steps**. They do not control:
+
+- **Line height** — set this in your global CSS (`line-height: 1.75` for body text is a safe default)
+- **Font weight** — choose weights for headings and body text in your CSS
+- **Font family** — bring your own typeface; salt-theme-gen is font-agnostic
+- **Shadow** — elevation depth is expressed through `surfaceElevation` colors, not shadow values. Add your own `box-shadow` as needed.
+- **Transition duration** — define motion in your CSS
+
+The design scales give you the geometry of your system. You own the typography and motion.
+
+<div class="callout callout-note">
+  <strong>Tip:</strong> When in doubt, start with <code>spacing: 'default'</code>, <code>radius: 'default'</code>, and <code>fontSize: 'default'</code>. These are calibrated to feel balanced on most screens. Move away from the defaults only when you have a specific product reason.
+</div>
