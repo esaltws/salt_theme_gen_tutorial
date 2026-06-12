@@ -1,0 +1,298 @@
+---
+title: Validation
+description: Use parseThemeJSON() to safely round-trip themes through storage, APIs, and external systems — with full runtime type checking.
+order: 10
+pain: You serialize your theme to JSON, store it in a database, load it back six months later, and discover a field is missing or a value is the wrong type. Nothing told you it was broken until a component crashed.
+---
+
+## Why validation matters
+
+`generateTheme()` always produces a well-typed, correct `GeneratedTheme` object. That guarantee holds for the lifetime of that function call — at build time, on the server, in your CI pipeline.
+
+But themes do not always stay in memory. They get:
+
+- Serialized to JSON and stored in a database
+- Passed through an API endpoint
+- Saved to `localStorage` for offline use
+- Exported as config files and committed to a repo
+- Shared across microservices as theme contracts
+- Loaded from user-uploaded files
+
+At any of those boundaries, the type guarantee breaks. JSON has no schema enforcement. A database field can be null. An API consumer can send anything. A config file can be hand-edited incorrectly.
+
+`parseThemeJSON()` re-establishes the guarantee at ingestion points.
+
+---
+
+## Basic usage
+
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+
+const raw = JSON.parse(savedThemeString);
+const result = parseThemeJSON(raw);
+
+if (result.success) {
+  const theme = result.theme; // GeneratedTheme — fully typed and validated
+} else {
+  console.error(result.errors); // string[] — what failed validation
+}
+```
+
+`parseThemeJSON()` never throws. It returns a discriminated union:
+
+```ts
+type ParseResult =
+  | { success: true;  theme: GeneratedTheme }
+  | { success: false; errors: string[] };
+```
+
+Always check `result.success` before using the theme.
+
+---
+
+## What gets validated
+
+`parseThemeJSON()` checks every field in the `GeneratedTheme` structure:
+
+**Structural checks:**
+- `light` and `dark` keys exist and are objects
+- All seven mode fields are present (`colors`, `states`, `surfaceElevation`, `spacing`, `radius`, `fontSizes`, `accessibility`)
+- All 21 color tokens are present in `colors`
+- All 8 intents are present in `states`, each with all 4 state keys
+- All 4 elevation levels are present in `surfaceElevation`
+- All 6 spacing steps, 7 radius steps, 7 font size steps are present
+- All 18 accessibility entries are present
+
+**Value checks:**
+- Color values are valid CSS color strings (hex, oklch, rgb, hsl)
+- Spacing and radius values are positive numbers
+- Font size values are positive numbers
+- Accessibility ratio is a positive number
+- Accessibility level is `'AAA'`, `'AA'`, or `'FAIL'`
+
+---
+
+## The round-trip pattern
+
+The most common use: generate once, store, validate on load.
+
+**At build time or server startup:**
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import fs from 'node:fs';
+
+const theme = generateTheme({ preset: 'ocean' });
+fs.writeFileSync('theme.json', JSON.stringify(theme, null, 2));
+```
+
+**At runtime, before using:**
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+import fs from 'node:fs';
+
+const raw = JSON.parse(fs.readFileSync('theme.json', 'utf8'));
+const result = parseThemeJSON(raw);
+
+if (!result.success) {
+  throw new Error(`Invalid theme.json:\n${result.errors.join('\n')}`);
+}
+
+export const theme = result.theme;
+```
+
+This pattern is safe across library version upgrades. If a new version of `salt-theme-gen` adds required fields, `parseThemeJSON()` will report which fields are missing — you re-generate and re-save.
+
+---
+
+## Validating themes from an API
+
+If your backend serves theme configuration to a frontend client:
+
+**API endpoint (server):**
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+app.get('/api/theme', (req, res) => {
+  const { preset = 'ocean' } = req.query;
+  const theme = generateTheme({ preset: String(preset) });
+  res.json(theme);
+});
+```
+
+**Client-side fetch with validation:**
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+
+async function fetchTheme(): Promise<GeneratedTheme> {
+  const response = await fetch('/api/theme?preset=ocean');
+  const raw = await response.json();
+
+  const result = parseThemeJSON(raw);
+  if (!result.success) {
+    throw new Error(`Theme API returned invalid data:\n${result.errors.join('\n')}`);
+  }
+
+  return result.theme;
+}
+```
+
+Without validation, a network error, a proxy mangling the response, or a server-side bug could silently return malformed data that crashes your component tree somewhere deep in a render.
+
+---
+
+## Validating user-provided themes
+
+If your product allows users to upload or configure custom themes:
+
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+
+function handleThemeUpload(file: File) {
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(e.target?.result as string);
+    } catch {
+      showError('Invalid JSON file.');
+      return;
+    }
+
+    const result = parseThemeJSON(raw);
+    if (!result.success) {
+      showError(`Theme file has ${result.errors.length} validation errors:\n${result.errors[0]}`);
+      return;
+    }
+
+    applyTheme(result.theme);
+  };
+
+  reader.readAsText(file);
+}
+```
+
+The `errors` array gives you user-facing messages. The first error is usually sufficient to show — listing all 18 missing fields when the file is completely wrong is not helpful.
+
+---
+
+## Validating themes in localStorage
+
+Storing the active theme in `localStorage` for instant load:
+
+```ts
+import { generateTheme, parseThemeJSON } from 'salt-theme-gen';
+import type { GeneratedTheme } from 'salt-theme-gen';
+
+const STORAGE_KEY = 'app-theme';
+
+function saveTheme(theme: GeneratedTheme): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(theme));
+}
+
+function loadTheme(): GeneratedTheme {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return generateTheme({ preset: 'ocean' }); // fallback
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return generateTheme({ preset: 'ocean' }); // corrupted JSON fallback
+  }
+
+  const result = parseThemeJSON(parsed);
+  if (!result.success) {
+    // Stale or incompatible theme — regenerate and overwrite
+    const fresh = generateTheme({ preset: 'ocean' });
+    saveTheme(fresh);
+    return fresh;
+  }
+
+  return result.theme;
+}
+```
+
+This handles three failure modes: missing key, corrupted JSON, and schema mismatch from a library upgrade — all without crashing.
+
+---
+
+## Using errors for debugging
+
+The `errors` array is human-readable. Each entry identifies the failing field path and what was expected:
+
+```ts
+const result = parseThemeJSON({ light: { colors: { primary: 123 } } });
+// result.success → false
+// result.errors →
+// [
+//   "light.colors.primary: expected a CSS color string, got number",
+//   "light.colors.secondary: required field missing",
+//   "light.colors.tertiary: required field missing",
+//   ... (all missing fields listed)
+//   "dark: required field missing",
+// ]
+```
+
+During development, log all errors. In production, log the count and the first message — the full list may be noisy.
+
+```ts
+if (!result.success) {
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Theme validation failed:', result.errors);
+  } else {
+    console.error(`Theme validation failed (${result.errors.length} errors): ${result.errors[0]}`);
+  }
+}
+```
+
+---
+
+## parseThemeJSON vs TypeScript types
+
+TypeScript types are erased at runtime. This code compiles but fails at runtime:
+
+```ts
+// Looks type-safe. Is not.
+const theme = JSON.parse(savedString) as GeneratedTheme;
+theme.light.colors.primary; // may throw if light is undefined
+```
+
+`parseThemeJSON()` is the runtime equivalent of the TypeScript type — it checks the shape at the moment you actually need the guarantee. Use both together:
+
+```ts
+const result = parseThemeJSON(raw);
+if (result.success) {
+  // result.theme is GeneratedTheme — TypeScript knows this AND it's verified at runtime
+  const primary = result.theme.light.colors.primary;
+}
+```
+
+---
+
+## Checking library compatibility
+
+`parseThemeJSON()` validates the current library's schema. If you serialized a theme with `salt-theme-gen@1.0.0` and now run `salt-theme-gen@1.2.0` which added new fields, validation will fail on the old data — which is the correct behavior.
+
+The fix is always: regenerate and re-save.
+
+```ts
+// After a library upgrade, re-generate all stored themes
+const themes = await db.query('SELECT id, config FROM saved_themes');
+for (const row of themes) {
+  const parsed = parseThemeJSON(JSON.parse(row.config));
+  if (!parsed.success) {
+    // Re-generate from the stored preset name
+    const fresh = generateTheme({ preset: row.preset });
+    await db.query('UPDATE saved_themes SET config = ? WHERE id = ?',
+      [JSON.stringify(fresh), row.id]);
+  }
+}
+```
+
+Run this as a migration script after each `salt-theme-gen` upgrade that changes the schema.
+
+<div class="callout callout-note">
+  <strong>Zod users:</strong> If your project already uses Zod for validation, <code>parseThemeJSON()</code> is implemented with Zod internally. The errors it returns are the same messages Zod would produce. You do not need to write your own Zod schema for <code>GeneratedTheme</code> — <code>parseThemeJSON()</code> is the canonical validator.
+</div>
