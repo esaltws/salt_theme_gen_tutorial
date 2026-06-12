@@ -1,0 +1,431 @@
+---
+title: salt-theme-gen with React Native
+description: Use salt-theme-gen tokens in React Native via a theme context — typed StyleSheet values, dark mode with useColorScheme, and the react-native-salt designed pair.
+framework: React Native
+pain: React Native has no CSS variables. You hardcode colors in StyleSheet.create() calls across 60 files, maintain a separate dark mode object that drifts out of sync, and every brand update is a project-wide find and replace.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-react-native
+---
+
+## What you will build
+
+- A `ThemeProvider` that wraps your app and provides typed mode tokens
+- A `useTheme()` hook for typed token access in any component
+- `StyleSheet.create()` patterns using generated values
+- Automatic dark mode via `useColorScheme()`
+- Integration path with `@esaltws/react-native-salt` — the designed pair
+
+**Time required:** 15 minutes.
+
+---
+
+## React Native is different
+
+Web frameworks use CSS custom properties (`var(--color-primary)`). React Native uses JavaScript objects — there are no CSS variables in the React Native runtime.
+
+This means the integration pattern is different from web:
+
+| Web | React Native |
+| --- | ------------ |
+| Inject CSS vars into `:root` | Pass token objects through React context |
+| `var(--color-primary)` in stylesheets | `theme.colors.primary` in `StyleSheet.create()` |
+| Dark mode via `data-theme` attribute | Dark mode via `useColorScheme()` hook |
+| CSS handles the switch | Context re-render handles the switch |
+
+`salt-theme-gen` works perfectly for React Native — you use the JavaScript token objects directly instead of CSS variables.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+---
+
+## Step 1 — Generate theme
+
+Create `src/theme/index.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+// Convenience exports
+export const lightTokens = theme.light;
+export const darkTokens  = theme.dark;
+```
+
+---
+
+## Step 2 — ThemeProvider and useTheme
+
+Create `src/theme/ThemeContext.tsx`:
+
+```tsx
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+} from 'react';
+import { useColorScheme } from 'react-native';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+import { theme } from './index';
+
+interface ThemeContextValue {
+  mode:   GeneratedThemeMode;
+  isDark: boolean;
+}
+
+const ThemeContext = createContext<ThemeContextValue>({
+  mode:   theme.light,
+  isDark: false,
+});
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const mode   = isDark ? theme.dark : theme.light;
+
+  return (
+    <ThemeContext.Provider value={{ mode, isDark }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export function useTheme(): ThemeContextValue {
+  return useContext(ThemeContext);
+}
+```
+
+Wrap your root component in `App.tsx`:
+
+```tsx
+import { ThemeProvider } from './src/theme/ThemeContext';
+import { RootNavigator } from './src/navigation/RootNavigator';
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <RootNavigator />
+    </ThemeProvider>
+  );
+}
+```
+
+`useColorScheme()` returns `'light'` or `'dark'` based on the device OS setting. The provider re-renders automatically when the OS preference changes.
+
+---
+
+## Step 3 — Manual dark mode toggle (optional)
+
+If you want an in-app toggle instead of (or in addition to) following the OS:
+
+```tsx
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+} from 'react';
+import { useColorScheme } from 'react-native';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+import { theme } from './index';
+
+interface ThemeContextValue {
+  mode:   GeneratedThemeMode;
+  isDark: boolean;
+  toggle: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextValue>({
+  mode:   theme.light,
+  isDark: false,
+  toggle: () => {},
+});
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const systemScheme = useColorScheme();
+  const [override, setOverride] = useState<'light' | 'dark' | null>(null);
+
+  const isDark = override
+    ? override === 'dark'
+    : systemScheme === 'dark';
+
+  const mode = isDark ? theme.dark : theme.light;
+
+  function toggle() {
+    setOverride(isDark ? 'light' : 'dark');
+  }
+
+  return (
+    <ThemeContext.Provider value={{ mode, isDark, toggle }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => useContext(ThemeContext);
+```
+
+For persistence across app restarts, save the override to `AsyncStorage`:
+
+```ts
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// On toggle
+await AsyncStorage.setItem('theme', override);
+
+// On mount
+const saved = await AsyncStorage.getItem('theme');
+if (saved === 'light' || saved === 'dark') setOverride(saved);
+```
+
+---
+
+## Using tokens in components
+
+### Basic — tokens in StyleSheet.create()
+
+```tsx
+import React from 'react';
+import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
+
+interface ButtonProps {
+  label:    string;
+  onPress?: () => void;
+  intent?:  'primary' | 'danger' | 'success';
+}
+
+export function Button({ label, onPress, intent = 'primary' }: ButtonProps) {
+  const { mode } = useTheme();
+  const styles = makeStyles(mode, intent);
+
+  return (
+    <TouchableOpacity style={styles.btn} onPress={onPress} activeOpacity={0.75}>
+      <Text style={styles.label}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function makeStyles(mode: ReturnType<typeof useTheme>['mode'], intent: string) {
+  const bg    = mode.colors[intent as keyof typeof mode.colors];
+  const onKey = `on${intent.charAt(0).toUpperCase()}${intent.slice(1)}`;
+  const color = mode.colors[onKey as keyof typeof mode.colors];
+
+  return StyleSheet.create({
+    btn: {
+      backgroundColor: bg,
+      borderRadius:    mode.radius.md,
+      paddingVertical: mode.spacing.sm,
+      paddingHorizontal: mode.spacing.lg,
+      alignItems: 'center',
+    },
+    label: {
+      color,
+      fontSize:   mode.fontSizes.md,
+      fontWeight: '600',
+    },
+  });
+}
+```
+
+### Memoized styles with useMemo
+
+Re-creating `StyleSheet` on every render is wasteful. Memoize by theme mode:
+
+```tsx
+import { useMemo } from 'react';
+import { StyleSheet } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
+
+export function Card({ title, body }: { title: string; body: string }) {
+  const { mode } = useTheme();
+
+  const styles = useMemo(() => StyleSheet.create({
+    card: {
+      backgroundColor: mode.surfaceElevation.card,
+      borderWidth: 1,
+      borderColor: mode.colors.border,
+      borderRadius: mode.radius.lg,
+      padding: mode.spacing.xl,
+      marginBottom: mode.spacing.md,
+    },
+    title: {
+      color:      mode.colors.text,
+      fontSize:   mode.fontSizes.lg,
+      fontWeight: '700',
+      marginBottom: mode.spacing.sm,
+    },
+    body: {
+      color:      mode.colors.muted,
+      fontSize:   mode.fontSizes.md,
+      lineHeight: mode.fontSizes.md * 1.6,
+    },
+  }), [mode]);
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.body}>{body}</Text>
+    </View>
+  );
+}
+```
+
+`useMemo` with `[mode]` as the dependency means styles are only recalculated when the theme mode changes — not on every render.
+
+---
+
+## Status badge with intent colors
+
+```tsx
+import { View, Text, StyleSheet } from 'react-native';
+import type { IntentName } from 'salt-theme-gen';
+import { useTheme } from '../theme/ThemeContext';
+
+interface BadgeProps {
+  label:  string;
+  intent: IntentName;
+}
+
+export function Badge({ label, intent }: BadgeProps) {
+  const { mode } = useTheme();
+
+  const bg    = mode.colors[intent];
+  const onKey = `on${intent.charAt(0).toUpperCase()}${intent.slice(1)}` as keyof typeof mode.colors;
+  const color = mode.colors[onKey];
+
+  return (
+    <View style={{
+      backgroundColor: bg,
+      borderRadius:    mode.radius.pill,
+      paddingVertical: mode.spacing.xs,
+      paddingHorizontal: mode.spacing.sm,
+      alignSelf: 'flex-start',
+    }}>
+      <Text style={{
+        color,
+        fontSize:   mode.fontSizes.xs,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+      }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+```
+
+---
+
+## Reading the accessibility report
+
+The accessibility report is available in React Native too — use it to verify token choices before building components:
+
+```ts
+import { theme } from './src/theme';
+
+const report = theme.light.accessibility;
+
+console.log('Primary on background:', report.primaryOnBackground);
+// { ratio: 5.2, level: 'AA' }
+
+console.log('Text on background:', report.textOnBackground);
+// { ratio: 14.1, level: 'AAA' }
+```
+
+In React Native, contrast ratios matter just as much as on web — screen readers and users with visual impairments use mobile apps too.
+
+---
+
+## Integration with @esaltws/react-native-salt
+
+`@esaltws/react-native-salt` is designed as a pair with `salt-theme-gen`. It provides 119+ pre-built components (Button, Card, Input, Badge, Modal, and more) that accept a `GeneratedThemeMode` directly:
+
+```bash
+npm install @esaltws/react-native-salt
+```
+
+```tsx
+import { SaltProvider, Button, Card, Badge } from '@esaltws/react-native-salt';
+import { theme } from './src/theme';
+import { useColorScheme } from 'react-native';
+
+export default function App() {
+  const colorScheme = useColorScheme();
+  const mode = colorScheme === 'dark' ? theme.dark : theme.light;
+
+  return (
+    // SaltProvider accepts the mode tokens directly
+    <SaltProvider mode={mode}>
+      <Button intent="primary" label="Get started" />
+      <Card title="Welcome" body="Your theme is active." />
+      <Badge intent="success" label="Active" />
+    </SaltProvider>
+  );
+}
+```
+
+`SaltProvider` distributes the mode tokens to all child components. Every component in the library is pre-styled using the same token system — you do not write `StyleSheet.create()` for any of them.
+
+This is the designed-pair relationship: `salt-theme-gen` is the token engine, `react-native-salt` is the component library that consumes it.
+
+---
+
+## Platform differences
+
+React Native has two platform-specific considerations:
+
+**Font sizes** — React Native font sizes are in logical pixels (dp on Android, points on iOS), not CSS pixels. The generated `fontSizes` values (11–38px) map well to these units on most devices, but you may want to scale them on tablets:
+
+```ts
+import { PixelRatio } from 'react-native';
+
+const scale = PixelRatio.getFontScale();
+const scaledFontSizes = Object.fromEntries(
+  Object.entries(theme.light.fontSizes).map(([k, v]) => [k, v * scale]),
+);
+```
+
+**Border radius** — React Native uses `borderRadius` in dp, same as spacing. The generated `radius` values work as-is.
+
+---
+
+## File structure summary
+
+```
+src/
+├── theme/
+│   ├── index.ts              ← generateTheme() export
+│   └── ThemeContext.tsx      ← ThemeProvider + useTheme hook
+├── components/
+│   ├── Button.tsx
+│   ├── Card.tsx
+│   └── Badge.tsx
+└── App.tsx                   ← ThemeProvider wrapper
+```
+
+---
+
+## Checklist
+
+- `src/theme/index.ts` calls `generateTheme()` ✓
+- `ThemeProvider` wraps the root in `App.tsx` ✓
+- `useColorScheme()` drives `isDark` automatically ✓
+- Components use `mode.colors.*`, `mode.spacing.*`, `mode.radius.*` ✓
+- `useMemo([mode])` wraps `StyleSheet.create()` calls ✓
+- No hardcoded color values in any component ✓
+
+<div class="callout callout-tip">
+  <strong>One source of truth for web and mobile:</strong> If you use salt-theme-gen on both your web app and React Native app, call <code>generateTheme()</code> with the same preset and options in both. Web tokens live in CSS variables; mobile tokens live in the context object. The values are identical — your brand is consistent across platforms without maintaining two color systems.
+</div>
