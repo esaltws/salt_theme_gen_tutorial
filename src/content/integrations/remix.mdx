@@ -1,0 +1,416 @@
+---
+title: salt-theme-gen with Remix
+description: Inject theme tokens in Remix's root.tsx for true SSR dark mode — cookie-based preference, no flash, works with Vite and Classic compiler.
+framework: Remix
+pain: Remix runs everything on the server first, but your theme colors live in localStorage. Every dark mode solution you try flashes light mode for a frame before JavaScript kicks in — because by the time the browser reads localStorage, the HTML is already painted.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-remix
+---
+
+## What you will build
+
+- CSS variables injected in `root.tsx` via a server-side `loader` — in the HTML before paint
+- Cookie-based theme preference so SSR renders the correct mode with zero flash
+- A `useTheme()` hook for typed token access in components
+- A theme toggle that updates the cookie and re-validates the loader
+
+**Time required:** 20 minutes. The cookie approach is slightly more involved than other frameworks but eliminates FOUC completely.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+---
+
+## Step 1 — Generate theme
+
+Create `app/lib/theme.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`--color-${kebab(k)}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`--surface-${k}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`--space-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`--radius-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`--text-${k}: ${v}px;`);
+
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`--state-${intent}-${state}: ${val};`);
+
+  return lines.join('\n  ');
+}
+
+export const lightVars = modeToVars(theme.light);
+export const darkVars  = modeToVars(theme.dark);
+
+export function getThemeCSS(isDark: boolean): string {
+  return `
+:root {
+  ${isDark ? darkVars : lightVars}
+}
+  `.trim();
+}
+
+// Full CSS with both modes — for clients without cookie preference
+export const fullThemeCSS = `
+:root { ${lightVars} }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${darkVars} } }
+:root[data-theme="dark"]  { ${darkVars} }
+:root[data-theme="light"] { ${lightVars} }
+`.trim();
+```
+
+---
+
+## Step 2 — Theme cookie
+
+Create `app/lib/themeCookie.ts`:
+
+```ts
+import { createCookie } from '@remix-run/node';
+
+export const themeCookie = createCookie('theme', {
+  maxAge: 60 * 60 * 24 * 365, // 1 year
+  sameSite: 'lax',
+  httpOnly: false,             // must be readable client-side for the toggle
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+});
+
+export async function getThemeFromCookie(request: Request): Promise<'light' | 'dark' | null> {
+  const cookieHeader = request.headers.get('Cookie');
+  const value = await themeCookie.parse(cookieHeader);
+  if (value === 'light' || value === 'dark') return value;
+  return null;
+}
+```
+
+---
+
+## Step 3 — Root loader and document
+
+Update `app/root.tsx`:
+
+```tsx
+import {
+  Links,
+  Meta,
+  Outlet,
+  Scripts,
+  ScrollRestoration,
+  useLoaderData,
+} from '@remix-run/react';
+import type { LoaderFunctionArgs } from '@remix-run/node';
+import { json } from '@remix-run/node';
+import { getThemeFromCookie, fullThemeCSS, getThemeCSS } from '~/lib/theme';
+import { getThemeFromCookie as getCookie } from '~/lib/themeCookie';
+import stylesheet from '~/app.css?url';
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const cookieTheme = await getCookie(request);
+  const isDark = cookieTheme === 'dark';
+
+  return json({
+    // SSR-render the correct mode based on cookie
+    themeCSS: cookieTheme ? getThemeCSS(isDark) : fullThemeCSS,
+    isDark,
+  });
+}
+
+export function links() {
+  return [{ rel: 'stylesheet', href: stylesheet }];
+}
+
+export default function App() {
+  const { themeCSS, isDark } = useLoaderData<typeof loader>();
+
+  return (
+    <html lang="en" data-theme={isDark ? 'dark' : 'light'}>
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <Meta />
+        <Links />
+        {/* Inject correct theme CSS — server knows the mode from cookie */}
+        <style dangerouslySetInnerHTML={{ __html: themeCSS }} />
+      </head>
+      <body>
+        <Outlet />
+        <ScrollRestoration />
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+```
+
+When a cookie exists, the server renders only the correct mode's variables — the `<html>` already has `data-theme` set. First paint is always correct.
+
+---
+
+## Step 4 — Theme toggle action
+
+Create `app/routes/api.theme.ts` to handle toggle requests:
+
+```ts
+import type { ActionFunctionArgs } from '@remix-run/node';
+import { json } from '@remix-run/node';
+import { themeCookie, getThemeFromCookie } from '~/lib/themeCookie';
+
+export async function action({ request }: ActionFunctionArgs) {
+  const current = await getThemeFromCookie(request);
+
+  // Detect OS preference from header if no cookie yet
+  const body = await request.formData();
+  const next = body.get('theme') as 'light' | 'dark';
+
+  return json(
+    { theme: next },
+    {
+      headers: {
+        'Set-Cookie': await themeCookie.serialize(next),
+      },
+    },
+  );
+}
+```
+
+---
+
+## Step 5 — ThemeToggle component
+
+```tsx
+// app/components/ThemeToggle.tsx
+import { useFetcher, useRouteLoaderData } from '@remix-run/react';
+import type { loader as rootLoader } from '~/root';
+
+export function ThemeToggle() {
+  const data = useRouteLoaderData<typeof rootLoader>('root');
+  const fetcher = useFetcher();
+
+  const isDark = data?.isDark ?? false;
+  const next = isDark ? 'light' : 'dark';
+
+  return (
+    <fetcher.Form method="post" action="/api/theme">
+      <input type="hidden" name="theme" value={next} />
+      <button
+        type="submit"
+        aria-label={`Switch to ${next} mode`}
+        style={{
+          background: 'none',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          padding: '6px 10px',
+          cursor: 'pointer',
+          color: 'var(--color-text)',
+          fontSize: 'var(--text-sm)',
+        }}
+      >
+        {isDark ? '☀ Light' : '◐ Dark'}
+      </button>
+    </fetcher.Form>
+  );
+}
+```
+
+`useFetcher` submits the form without a full page reload. The root loader re-runs, returns the new `themeCSS`, and React updates the `<style>` tag — all in one round trip.
+
+---
+
+## Step 6 — useTheme hook
+
+```tsx
+// app/hooks/useTheme.ts
+import { useRouteLoaderData } from '@remix-run/react';
+import type { loader as rootLoader } from '~/root';
+import { theme } from '~/lib/theme';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export function useTheme(): { mode: GeneratedThemeMode; isDark: boolean } {
+  const data = useRouteLoaderData<typeof rootLoader>('root');
+  const isDark = data?.isDark ?? false;
+
+  return {
+    mode: isDark ? theme.dark : theme.light,
+    isDark,
+  };
+}
+```
+
+---
+
+## Using tokens in components
+
+### CSS variables — no imports needed
+
+```tsx
+function PrimaryButton({ children }: { children: React.ReactNode }) {
+  return (
+    <button style={{
+      background: 'var(--color-primary)',
+      color: 'var(--color-on-primary)',
+      borderRadius: 'var(--radius-md)',
+      padding: 'var(--space-sm) var(--space-lg)',
+      border: 'none',
+      fontWeight: 600,
+      cursor: 'pointer',
+    }}>
+      {children}
+    </button>
+  );
+}
+```
+
+### With typed tokens
+
+```tsx
+import { useTheme } from '~/hooks/useTheme';
+
+function StatusBadge({ status }: { status: 'success' | 'danger' | 'warning' }) {
+  const { mode } = useTheme();
+  const onKey = `on${status.charAt(0).toUpperCase()}${status.slice(1)}` as keyof typeof mode.colors;
+
+  return (
+    <span style={{
+      background: mode.colors[status],
+      color: mode.colors[onKey],
+      borderRadius: `${mode.radius.pill}px`,
+      padding: `${mode.spacing.xs}px ${mode.spacing.md}px`,
+      fontSize: `${mode.fontSizes.xs}px`,
+      fontWeight: 600,
+    }}>
+      {status}
+    </span>
+  );
+}
+```
+
+### With CSS Modules
+
+```css
+/* app/components/Card.module.css */
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+.title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 var(--space-sm);
+}
+.body {
+  font-size: var(--text-md);
+  color: var(--color-muted);
+  line-height: 1.7;
+  margin: 0;
+}
+```
+
+---
+
+## Global base styles
+
+Create `app/app.css`:
+
+```css
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--state-primary-hover); }
+```
+
+---
+
+## Why cookies instead of localStorage
+
+Remix's server renders HTML before the browser has a chance to read `localStorage`. Any solution that reads `localStorage` on the client will always flash — the server-rendered HTML has the wrong colors until JavaScript runs.
+
+A cookie is sent with every request — the server reads it in the `loader` and renders the correct CSS from the start. The timeline looks like:
+
+```
+Request → loader reads cookie → renders correct themeCSS → browser paints ✓
+```
+
+versus localStorage:
+
+```
+Request → server renders light CSS → browser paints ✗ → JS reads localStorage → updates ✗ (flash)
+```
+
+---
+
+## File structure summary
+
+```
+app/
+├── root.tsx                         ← loader + style injection
+├── app.css                          ← token-based base styles
+├── lib/
+│   ├── theme.ts                     ← generateTheme() + CSS var export
+│   └── themeCookie.ts               ← cookie helper
+├── routes/
+│   └── api.theme.ts                 ← toggle action (Set-Cookie)
+├── hooks/
+│   └── useTheme.ts                  ← typed token access
+└── components/
+    └── ThemeToggle.tsx              ← useFetcher form
+```
+
+---
+
+## Checklist
+
+- `app/lib/theme.ts` generates CSS vars ✓
+- `root.tsx` loader reads cookie and returns correct `themeCSS` ✓
+- `<style dangerouslySetInnerHTML>` in `<head>` ✓
+- `<html data-theme>` set server-side from cookie ✓
+- `api/theme` action sets `Set-Cookie` header ✓
+- `ThemeToggle` uses `useFetcher` — no page reload ✓
+- No FOUC on hard reload or SSR ✓
+
+<div class="callout callout-tip">
+  <strong>Remix v2 + React Router v7:</strong> This guide works with both Remix v2 and React Router v7 (which merges Remix). The APIs are identical — <code>useRouteLoaderData</code>, <code>useFetcher</code>, and <code>createCookie</code> are available in both.
+</div>
