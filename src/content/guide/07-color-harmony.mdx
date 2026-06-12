@@ -1,0 +1,272 @@
+---
+title: ColorHarmony & Accents
+description: Understand how secondary, tertiary, and quaternary colors are derived from your primary, and how to control the harmony strategy.
+order: 7
+pain: You pick a primary blue, then spend an hour trying to find a secondary color that "goes with it." You end up with something random, or you just use a grey and call it done. The palette has no coherent relationship.
+---
+
+## The problem with manual accent selection
+
+Most developers pick a primary color and then struggle with the rest. The secondary color gets chosen by vibes — "that green feels okay next to the blue." The tertiary is whatever was left in the Figma file. The result is a palette that passes a cursory glance but has no mathematical relationship between its parts.
+
+When the primary color changes (new brand, new client, A/B test), you do it again from scratch.
+
+`salt-theme-gen` derives all accent colors from the primary using **color harmony algorithms in OKLCH space**. Change the primary — the entire palette updates coherently.
+
+---
+
+## The four brand colors
+
+Every generated theme has four brand color slots:
+
+```ts
+theme.light.colors.primary     // Your anchor color — buttons, links, key actions
+theme.light.colors.secondary   // Complementary accent — secondary actions, tags
+theme.light.colors.tertiary    // Supporting accent — highlights, selection states
+theme.light.colors.quaternary  // Harmony accent — charts, decorative elements
+```
+
+Each is derived from `primary` by rotating the hue angle in OKLCH. The lightness and chroma are adjusted to ensure all four are visually balanced — no one color dominates unless used intentionally.
+
+---
+
+## Color harmony strategies
+
+The `colorHarmony` option controls how secondary, tertiary, and quaternary hue angles are chosen relative to primary:
+
+```ts
+generateTheme({
+  preset: 'ocean',
+  colorHarmony: 'complementary', // default
+})
+```
+
+Available strategies: `'complementary'` | `'analogous'` | `'triadic'` | `'split-complementary'`
+
+---
+
+### `complementary` (default)
+
+The secondary color sits **180° across the hue wheel** from the primary. Tertiary and quaternary are placed at intermediate angles between them.
+
+```
+Primary:    H = 220° (ocean blue)
+Secondary:  H = 40°  (warm amber — directly opposite)
+Tertiary:   H = 260° (between primary and secondary, shifted)
+Quaternary: H = 340° (further around toward secondary)
+```
+
+**Visual effect:** High contrast between primary and secondary. The two colors feel like opposites — one cool, one warm. Creates visual tension that draws the eye.
+
+**Best for:** Products that need a strong visual hierarchy, call-to-action contrast, or a bold visual identity. Primary is "business," secondary is "accent."
+
+```ts
+generateTheme({ preset: 'ocean', colorHarmony: 'complementary' })
+// Blue primary + amber secondary — high contrast, high energy
+```
+
+---
+
+### `analogous`
+
+The secondary, tertiary, and quaternary are placed **30°–60° away** from the primary on the same side of the hue wheel.
+
+```
+Primary:    H = 220° (ocean blue)
+Secondary:  H = 255° (blue-violet — 35° clockwise)
+Tertiary:   H = 185° (teal — 35° counterclockwise)
+Quaternary: H = 290° (violet — further clockwise)
+```
+
+**Visual effect:** The entire palette feels like variations of one color family. Cohesive, harmonious, sophisticated. No strong contrast between primary and secondary.
+
+**Best for:** Products with a strong single-color brand identity that want accent variety without disruption. Documentation sites, editorial content, tools where the palette should support content rather than compete with it.
+
+```ts
+generateTheme({ preset: 'ocean', colorHarmony: 'analogous' })
+// Blue + blue-violet + teal — all feel like "blue family"
+```
+
+---
+
+### `triadic`
+
+The secondary and tertiary are placed **120° and 240° away** from the primary — three equidistant points on the hue wheel.
+
+```
+Primary:    H = 220° (ocean blue)
+Secondary:  H = 340° (rose — 120° clockwise)
+Tertiary:   H = 100° (yellow-green — 240° clockwise, or 120° counterclockwise)
+Quaternary: H = 265° (intermediate)
+```
+
+**Visual effect:** Three distinct, vibrant colors with no obvious dominant. Feels dynamic and diverse. Harder to control visually — requires deliberate restraint to avoid clashing.
+
+**Best for:** Data visualization (charts need distinct colors), creative platforms, and UIs where multiple equal-weight categories need differentiation.
+
+```ts
+generateTheme({ preset: 'ocean', colorHarmony: 'triadic' })
+// Blue + rose + yellow-green — distinct, vibrant, equal weight
+```
+
+---
+
+### `split-complementary`
+
+The secondary and tertiary are placed **150° and 210° away** from the primary — flanking the complementary angle rather than landing on it exactly.
+
+```
+Primary:    H = 220° (ocean blue)
+Secondary:  H = 370°/10° (warm red-orange — 150° clockwise)
+Tertiary:   H = 70°  (warm yellow — 150° counterclockwise)
+Quaternary: H = 310° (intermediate)
+```
+
+**Visual effect:** High contrast like complementary, but softer. Secondary and tertiary are warm relatives of the true complement. Feels energetic but more approachable than a direct complementary.
+
+**Best for:** Products that want visual dynamism without the starkness of a direct complement. Startup marketing pages, consumer SaaS, apps where energy and approachability are both needed.
+
+```ts
+generateTheme({ preset: 'ocean', colorHarmony: 'split-complementary' })
+// Blue + red-orange + warm yellow — energetic but not jarring
+```
+
+---
+
+## What changes with each strategy
+
+Only the hue angles of secondary, tertiary, and quaternary change. Everything else stays the same:
+
+| What changes | What stays the same |
+| ------------ | ------------------- |
+| `secondary` hue | `primary` color |
+| `tertiary` hue | All `on*` colors (re-derived) |
+| `quaternary` hue | Spacing, radius, font sizes |
+| State colors for secondary/tertiary/quaternary | State colors for primary |
+| Accessibility checks for secondary/tertiary | Accessibility for primary/text/background |
+
+The `on*` colors for secondary, tertiary, and quaternary are always recomputed after the harmony algorithm runs — they are always correct for whatever accent color the strategy produces.
+
+---
+
+## How accents are used in practice
+
+Understanding which token to reach for in each situation:
+
+### `primary` — main actions
+
+```tsx
+// The button the user should click most often
+<Button style={{ background: colors.primary, color: colors.onPrimary }}>
+  Save changes
+</Button>
+
+// Active nav link
+<NavLink style={{ color: colors.primary }} />
+
+// Focus rings
+outline: `2px solid ${states.primary.focused}`
+```
+
+### `secondary` — supporting actions and accents
+
+```tsx
+// Secondary or cancel buttons
+<Button style={{ background: colors.secondary, color: colors.onSecondary }}>
+  Discard
+</Button>
+
+// Badges and tags for secondary categories
+<Tag style={{ background: colors.secondary, color: colors.onSecondary }}>
+  Beta
+</Tag>
+
+// Secondary navigation indicators
+```
+
+### `tertiary` — highlights and selection
+
+```tsx
+// Selected row in a table
+<tr style={{ background: colors.tertiary + '22' }}>  {/* with alpha */}
+
+// Highlighted search result
+<mark style={{ background: colors.tertiary, color: colors.onTertiary }} />
+
+// Active chip in a filter group
+<Chip style={{ background: colors.tertiary, color: colors.onTertiary }}>
+  Last 30 days
+</Chip>
+```
+
+### `quaternary` — decorative and data visualization
+
+```tsx
+// Chart series 4 (primary handles series 1, secondary 2, tertiary 3)
+const chartColors = [
+  colors.primary,
+  colors.secondary,
+  colors.tertiary,
+  colors.quaternary,
+];
+
+// Decorative dividers or accents
+<div style={{ borderTop: `2px solid ${colors.quaternary}` }} />
+
+// Illustration or icon accent color
+```
+
+---
+
+## Choosing a harmony strategy
+
+| Product type | Recommended strategy |
+| ------------ | -------------------- |
+| B2B SaaS, general web app | `complementary` (default) |
+| Documentation, editorial | `analogous` |
+| Data visualization, dashboards | `triadic` |
+| Consumer app, marketing | `split-complementary` |
+| Single-brand identity | `analogous` |
+| High-contrast feature emphasis | `complementary` |
+
+When in doubt, leave the default (`complementary`). It is the most visually stable choice and the one that reads most naturally when primary and secondary are used in parallel — such as primary for CTAs and secondary for category tags.
+
+---
+
+## Inspecting harmony output
+
+To see exactly what each strategy produces for your preset:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const strategies = ['complementary', 'analogous', 'triadic', 'split-complementary'] as const;
+
+for (const colorHarmony of strategies) {
+  const theme = generateTheme({ preset: 'ocean', colorHarmony });
+  const { primary, secondary, tertiary, quaternary } = theme.light.colors;
+  console.log(colorHarmony, { primary, secondary, tertiary, quaternary });
+}
+```
+
+This gives you the four OKLCH values for each strategy side by side. Pick the one whose secondary and tertiary feel best in your UI context.
+
+---
+
+## A note on harmony and intent colors
+
+The harmony algorithm only affects `primary`, `secondary`, `tertiary`, and `quaternary`. It does **not** touch `danger`, `success`, `warning`, or `info`.
+
+Intent colors are hue-fixed by design:
+- `danger` → always red (~10–20°)
+- `success` → always green (~140–160°)
+- `warning` → always amber (~60–80°)
+- `info` → always blue (~200–220°)
+
+They are adjusted for lightness and chroma to harmonize with your primary, but the hue never drifts. A `danger` red that shifts to orange-red because your primary is orange would undermine the semantic meaning.
+
+The harmony strategy is about your brand expression. The intent colors are about universal meaning.
+
+<div class="callout callout-note">
+  <strong>Most products never set <code>colorHarmony</code>.</strong> The default <code>'complementary'</code> works for the vast majority of use cases. If you find yourself tweaking accent colors and nothing feels right, try <code>'analogous'</code> — it produces the most cohesive, low-tension palette and is often the right choice for professional tools.
+</div>
