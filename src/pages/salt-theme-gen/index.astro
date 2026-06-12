@@ -1,0 +1,407 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const integrations = [
+  { name: 'React', href: '/salt-theme-gen/integrations/react/' },
+  { name: 'Next.js', href: '/salt-theme-gen/integrations/next-js/' },
+  { name: 'Vue 3', href: '/salt-theme-gen/integrations/vue/' },
+  { name: 'Nuxt 3', href: '/salt-theme-gen/integrations/nuxt/' },
+  { name: 'Astro', href: '/salt-theme-gen/integrations/astro/' },
+  { name: 'SvelteKit', href: '/salt-theme-gen/integrations/sveltekit/' },
+  { name: 'Remix', href: '/salt-theme-gen/integrations/remix/' },
+  { name: 'Angular', href: '/salt-theme-gen/integrations/angular/' },
+  { name: 'Vanilla JS', href: '/salt-theme-gen/integrations/vanilla-js/' },
+  { name: 'Tailwind CSS', href: '/salt-theme-gen/integrations/tailwind-css/' },
+  { name: 'React Native', href: '/salt-theme-gen/integrations/react-native/' },
+  { name: 'Expo', href: '/salt-theme-gen/integrations/expo/' },
+  { name: 'Flutter', href: '/salt-theme-gen/integrations/flutter/' },
+  { name: 'Storybook', href: '/salt-theme-gen/integrations/storybook/' },
+  { name: 'CSS-in-JS', href: '/salt-theme-gen/integrations/css-in-js/' },
+  { name: 'Sass/SCSS', href: '/salt-theme-gen/integrations/sass/' },
+  { name: 'Bolt.new', href: '/salt-theme-gen/integrations/no-code/' },
+  { name: 'Lovable', href: '/salt-theme-gen/integrations/no-code/' },
+];
+
+const guideChapters = [
+  { order: 1, title: 'Introduction', href: '/salt-theme-gen/guide/introduction/' },
+  { order: 2, title: 'Quick Start', href: '/salt-theme-gen/guide/quick-start/' },
+  { order: 3, title: 'Understanding the Output', href: '/salt-theme-gen/guide/understanding-output/' },
+  { order: 4, title: 'Color Presets', href: '/salt-theme-gen/guide/color-presets/' },
+  { order: 5, title: 'Design Scale Presets', href: '/salt-theme-gen/guide/design-scales/' },
+  { order: 6, title: 'Accessibility Built-in', href: '/salt-theme-gen/guide/accessibility/' },
+  { order: 7, title: 'ColorHarmony & Accents', href: '/salt-theme-gen/guide/color-harmony/' },
+  { order: 8, title: 'Adjusting Themes', href: '/salt-theme-gen/guide/adjusting/' },
+  { order: 9, title: 'Comparing Themes', href: '/salt-theme-gen/guide/comparing/' },
+  { order: 10, title: 'Validation', href: '/salt-theme-gen/guide/validation/' },
+  { order: 11, title: 'TypeScript Integration', href: '/salt-theme-gen/guide/typescript/' },
+];
+---
+
+<BaseLayout
+  title="salt-theme-gen"
+  description="OKLCH-based design system generator. Generate a complete theme from a single color."
+>
+  <!-- Package hero -->
+  <section class="pkg-hero">
+    <div class="container">
+      <nav class="breadcrumb">
+        <a href="/">learn.esalt.net</a>
+        <span>/</span>
+        <span>salt-theme-gen</span>
+      </nav>
+
+      <div class="pkg-hero-inner">
+        <div class="pkg-hero-content">
+          <div class="pkg-hero-badges">
+            <span class="badge badge-primary">v1.2.2</span>
+            <span class="badge">MIT</span>
+            <span class="badge">Zero dependencies</span>
+            <span class="badge">428 tests</span>
+          </div>
+          <h1 class="pkg-hero-title">salt-theme-gen</h1>
+          <p class="pkg-hero-sub">
+            OKLCH-based design system generator — generate a complete light/dark
+            theme from a single color. Platform agnostic: React, React Native,
+            Next.js, Vue, Angular, Vanilla JS, Flutter, and more.
+          </p>
+          <div class="pkg-hero-install">
+            <code>npm install salt-theme-gen</code>
+          </div>
+          <div class="pkg-hero-actions">
+            <a href="/salt-theme-gen/guide/introduction/" class="btn btn-primary">
+              Start the guide →
+            </a>
+            <a href="/salt-theme-gen/guide/quick-start/" class="btn btn-outline">
+              Quick start (5 min)
+            </a>
+          </div>
+        </div>
+
+        <div class="pkg-hero-snippet">
+          <div class="snippet-header">
+            <span class="snippet-dot red"></span>
+            <span class="snippet-dot yellow"></span>
+            <span class="snippet-dot green"></span>
+            <span class="snippet-file">theme.ts</span>
+          </div>
+          <pre class="snippet-code"><code>{`import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({
+  preset: 'ocean',      // or any hex color
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+// theme.light.colors.primary   → '#2563eb'
+// theme.dark.colors.background → '#0a0f1e'
+// theme.light.spacing.md       → 12
+// theme.light.accessibility    → WCAG report`}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Guide index -->
+  <section class="guide-section">
+    <div class="container">
+      <h2 class="section-title">Guide</h2>
+      <p class="section-sub">
+        Sequential tutorial — each chapter builds on the last.
+        Start from the beginning or jump to what you need.
+      </p>
+
+      <div class="chapter-list">
+        {guideChapters.map(chapter => (
+          <a href={chapter.href} class="chapter-item">
+            <span class="chapter-num">{String(chapter.order).padStart(2, '0')}</span>
+            <span class="chapter-title">{chapter.title}</span>
+            <span class="chapter-arrow">→</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations grid -->
+  <section class="integrations-section">
+    <div class="container">
+      <h2 class="section-title">Integrations</h2>
+      <p class="section-sub">
+        Every guide opens with the developer pain it solves, then walks you
+        through the integration step by step with a live StackBlitz demo.
+      </p>
+
+      <div class="integration-grid">
+        {integrations.map(item => (
+          <a href={item.href} class="integration-card">
+            <span class="integration-name">{item.name}</span>
+            <span class="integration-arrow">→</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- AI resources teaser -->
+  <section class="ai-section">
+    <div class="container ai-inner">
+      <div>
+        <h2 class="section-title">AI-ready resources</h2>
+        <p class="section-sub" style="margin-bottom: 0">
+          Use salt-theme-gen with Claude, Cursor, ChatGPT, and any AI coding
+          assistant. Ready-to-copy prompt templates for every framework, plus
+          a machine-readable <code>llms.txt</code> spec.
+        </p>
+      </div>
+      <a href="/salt-theme-gen/ai/" class="btn btn-outline">View AI resources →</a>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    margin-bottom: var(--space-xl);
+  }
+
+  .breadcrumb a {
+    color: var(--color-muted);
+  }
+
+  .breadcrumb a:hover {
+    color: var(--color-primary);
+  }
+
+  /* ── Package hero ─────────────────────────────────────────────── */
+  .pkg-hero {
+    padding: var(--space-xxl) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .pkg-hero-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xxl);
+    align-items: start;
+  }
+
+  .pkg-hero-badges {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-md);
+  }
+
+  .pkg-hero-title {
+    font-family: 'Fira Code', monospace;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-md);
+  }
+
+  .pkg-hero-sub {
+    font-size: var(--text-md);
+    color: var(--color-muted);
+    line-height: 1.7;
+    margin-bottom: var(--space-lg);
+  }
+
+  .pkg-hero-install code {
+    display: block;
+    font-size: var(--text-sm);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-lg);
+  }
+
+  .pkg-hero-actions {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+  }
+
+  /* Code snippet */
+  .pkg-hero-snippet {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--color-surface);
+  }
+
+  .snippet-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-background);
+  }
+
+  .snippet-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .snippet-dot.red    { background: #ff5f57; }
+  .snippet-dot.yellow { background: #febc2e; }
+  .snippet-dot.green  { background: #28c840; }
+
+  .snippet-file {
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    margin-left: var(--space-xs);
+    font-family: 'Fira Code', monospace;
+  }
+
+  .snippet-code {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    font-size: var(--text-xs);
+    line-height: 1.7;
+    padding: var(--space-lg);
+    background: var(--color-surface);
+  }
+
+  /* ── Guide section ────────────────────────────────────────────── */
+  .guide-section {
+    padding: var(--space-xxl) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .section-title {
+    margin-bottom: var(--space-sm);
+  }
+
+  .section-sub {
+    color: var(--color-muted);
+    max-width: 560px;
+    margin-bottom: var(--space-xl);
+    line-height: 1.7;
+  }
+
+  .chapter-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .chapter-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    text-decoration: none;
+    border-bottom: 1px solid var(--color-border);
+    transition: background 0.15s;
+    color: var(--color-text);
+  }
+
+  .chapter-item:last-child {
+    border-bottom: none;
+  }
+
+  .chapter-item:hover {
+    background: var(--color-surface);
+    text-decoration: none;
+  }
+
+  .chapter-num {
+    font-family: 'Fira Code', monospace;
+    font-size: var(--text-xs);
+    color: var(--color-primary);
+    font-weight: 700;
+    min-width: 28px;
+  }
+
+  .chapter-title {
+    font-size: var(--text-sm);
+    flex: 1;
+  }
+
+  .chapter-arrow {
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    transition: transform 0.15s;
+  }
+
+  .chapter-item:hover .chapter-arrow {
+    transform: translateX(4px);
+    color: var(--color-primary);
+  }
+
+  /* ── Integrations ─────────────────────────────────────────────── */
+  .integrations-section {
+    padding: var(--space-xxl) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .integration-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--space-sm);
+  }
+
+  .integration-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text);
+    background: var(--color-surface);
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .integration-card:hover {
+    border-color: var(--color-primary);
+    background: var(--color-background);
+    text-decoration: none;
+  }
+
+  .integration-name {
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  .integration-arrow {
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    transition: transform 0.15s, color 0.15s;
+  }
+
+  .integration-card:hover .integration-arrow {
+    transform: translateX(4px);
+    color: var(--color-primary);
+  }
+
+  /* ── AI section ───────────────────────────────────────────────── */
+  .ai-section {
+    padding: var(--space-xxl) 0;
+    background: var(--color-surface);
+  }
+
+  .ai-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xl);
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 900px) {
+    .pkg-hero-inner {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

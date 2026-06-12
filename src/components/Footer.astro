@@ -1,0 +1,126 @@
+---
+---
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo">learn.esalt.net</span>
+      <p class="footer-tagline">
+        The official learning hub for esalt open-source packages.
+      </p>
+    </div>
+
+    <nav class="footer-nav">
+      <div class="footer-col">
+        <p class="footer-col-title">salt-theme-gen</p>
+        <a href="/salt-theme-gen/guide/introduction">Guide</a>
+        <a href="/salt-theme-gen/integrations/">Integrations</a>
+        <a href="/salt-theme-gen/api/">API Reference</a>
+        <a href="/salt-theme-gen/ai/">AI Resources</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-col-title">@esaltws/react-native-salt</p>
+        <a href="/react-native-salt/">Coming soon</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-col-title">Links</p>
+        <a href="https://esalt.net" target="_blank" rel="noopener">esalt.net</a>
+        <a href="https://npmjs.com/package/salt-theme-gen" target="_blank" rel="noopener">npm</a>
+        <a href="https://github.com/Hasansarwer/salt-theme-gen" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://hasansarwer.com" target="_blank" rel="noopener">hasansarwer.com</a>
+      </div>
+    </nav>
+  </div>
+
+  <div class="footer-bottom">
+    <div class="container">
+      <p>
+        Built with
+        <a href="/salt-theme-gen/">salt-theme-gen</a>
+        — the site is the demo.
+        MIT licensed.
+      </p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    margin-top: auto;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+
+  .footer-inner {
+    display: flex;
+    gap: var(--space-xxl);
+    padding-top: var(--space-xxl);
+    padding-bottom: var(--space-xxl);
+  }
+
+  .footer-brand {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .footer-logo {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .footer-tagline {
+    margin-top: var(--space-sm);
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    max-width: 220px;
+    line-height: 1.6;
+  }
+
+  .footer-nav {
+    display: flex;
+    gap: var(--space-xxl);
+  }
+
+  .footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    min-width: 160px;
+  }
+
+  .footer-col-title {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .footer-col a {
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .footer-col a:hover {
+    color: var(--color-primary);
+  }
+
+  .footer-bottom {
+    border-top: 1px solid var(--color-border);
+    padding: var(--space-md) 0;
+  }
+
+  .footer-bottom p {
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    text-align: center;
+  }
+
+  .footer-bottom a {
+    color: var(--color-primary);
+  }
+</style>

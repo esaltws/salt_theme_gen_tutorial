@@ -1,0 +1,116 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="@esaltws/react-native-salt"
+  description="React Native UI kit — designed pair with salt-theme-gen. Tutorial coming soon."
+>
+  <section class="coming-soon">
+    <div class="container">
+      <nav class="breadcrumb">
+        <a href="/">learn.esalt.net</a>
+        <span>/</span>
+        <span>react-native-salt</span>
+      </nav>
+
+      <h1>@esaltws/react-native-salt</h1>
+      <p class="lead">
+        React Native UI kit powered by your salt-theme-gen theme. 119+ themed
+        components with built-in light/dark mode, font scaling, and zero native
+        dependencies.
+      </p>
+
+      <div class="install-box">
+        <code>npm install @esaltws/react-native-salt</code>
+      </div>
+
+      <div class="pair-note">
+        <h2>The designed pair</h2>
+        <p>
+          <code>salt-theme-gen</code> and <code>@esaltws/react-native-salt</code>
+          are built as a pair. salt-theme-gen generates the theme; react-native-salt
+          consumes it as its token source. One hue value — consistent tokens on web
+          and mobile.
+        </p>
+        <p>
+          Learn how they work together in the
+          <a href="/salt-theme-gen/integrations/react-native/">React Native pair guide</a>.
+        </p>
+      </div>
+
+      <div class="tutorial-soon">
+        <p>
+          Full react-native-salt tutorial coming in Phase 2.
+          <a href="/">Get notified →</a>
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .coming-soon {
+    padding: var(--space-xxl) 0;
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    margin-bottom: var(--space-xl);
+  }
+
+  .breadcrumb a { color: var(--color-muted); }
+  .breadcrumb a:hover { color: var(--color-primary); }
+
+  h1 {
+    font-family: 'Fira Code', monospace;
+    margin-bottom: var(--space-md);
+  }
+
+  .lead {
+    font-size: var(--text-lg);
+    color: var(--color-muted);
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: var(--space-xl);
+  }
+
+  .install-box code {
+    display: block;
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-xl);
+  }
+
+  .pair-note {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-xl);
+    max-width: 640px;
+    margin-bottom: var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .pair-note h2 {
+    font-size: var(--text-lg);
+  }
+
+  .pair-note p {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    line-height: 1.7;
+  }
+
+  .tutorial-soon p {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+  }
+</style>
