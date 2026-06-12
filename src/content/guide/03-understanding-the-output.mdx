@@ -1,0 +1,438 @@
+---
+title: Understanding the Output
+description: Explore every field in the GeneratedTheme object — colors, states, elevation, scales, and accessibility — and learn how tokens relate to each other.
+order: 3
+pain: You call a function and get back an object. But which field do you use for what? You end up guessing, reading source code, or using only the colors you recognize and ignoring the rest.
+---
+
+## The shape of GeneratedTheme
+
+`generateTheme()` returns a single object with exactly two keys:
+
+```ts
+interface GeneratedTheme {
+  light: GeneratedThemeMode;
+  dark:  GeneratedThemeMode;
+}
+```
+
+Both modes are identical in structure. Everything inside `light` has an exact parallel in `dark`. You pick the mode at render time based on the user's preference. The math is already done for both.
+
+```ts
+const theme = generateTheme({ preset: 'ocean' });
+
+// Same structure, different values
+theme.light.colors.primary  // oklch(0.55 0.18 220)
+theme.dark.colors.primary   // oklch(0.65 0.18 220)
+```
+
+---
+
+## GeneratedThemeMode — full structure
+
+Each mode has seven top-level fields:
+
+```ts
+interface GeneratedThemeMode {
+  colors:          SemanticColors;      // 21 tokens
+  states:          IntentStates;        // 32 tokens (8 intents × 4 states)
+  surfaceElevation: SurfaceElevation;   // 4 tokens
+  spacing:         SpacingScale;        // 6 steps
+  radius:          RadiusScale;         // 7 steps
+  fontSizes:       FontSizeScale;       // 7 steps
+  accessibility:   AccessibilityReport; // 18 WCAG checks
+}
+```
+
+Let's go through each one.
+
+---
+
+## colors — 21 semantic tokens
+
+### Brand colors (4)
+
+```ts
+theme.light.colors.primary     // Main brand color. Buttons, links, active states.
+theme.light.colors.secondary   // Complementary accent. Secondary buttons, tags.
+theme.light.colors.tertiary    // Supporting accent. Highlights, badges, selection.
+theme.light.colors.quaternary  // Harmony accent. Charts, decorative elements.
+```
+
+These four are mathematically related. `secondary` is derived from `primary` using a complementary hue rotation in OKLCH. `tertiary` and `quaternary` are derived using analogous or triadic relationships depending on the `colorHarmony` option (Chapter 7 covers this in depth).
+
+The key: they are harmonious by construction, not by coincidence.
+
+### Surface colors (2)
+
+```ts
+theme.light.colors.background  // The page/screen background. Applied to <body>.
+theme.light.colors.surface     // Cards, inputs, sheets, modals — one layer up.
+```
+
+`background` is the furthest-back layer. `surface` sits on top of it. For the Ocean preset in light mode:
+- `background` → near-white with a faint blue tint
+- `surface` → white, slightly warmer
+
+In dark mode both shift toward deep navy. The tint relationship stays the same.
+
+### Text colors (2)
+
+```ts
+theme.light.colors.text    // Primary text. Use for headings, body copy, labels.
+theme.light.colors.muted   // Secondary text. Placeholders, captions, helper text.
+```
+
+Both are checked against `background` in the accessibility report. `text` always passes WCAG AAA. `muted` always passes WCAG AA. If the generated values would fail, the library adjusts them automatically.
+
+### Structural (1)
+
+```ts
+theme.light.colors.border  // Lines, dividers, input outlines, table borders.
+```
+
+`border` is a mid-tone between `surface` and `muted`. It is visible enough to define structure but subtle enough not to compete with content.
+
+### Intent colors (4)
+
+```ts
+theme.light.colors.danger   // Destructive actions, error messages, delete buttons.
+theme.light.colors.success  // Confirmations, completed states, positive feedback.
+theme.light.colors.warning  // Non-critical alerts, caution states.
+theme.light.colors.info     // Informational content, neutral notifications.
+```
+
+These are hue-fixed: danger is always red, success is always green, warning is always amber, info is always blue. They are adjusted for chroma and lightness to be harmonious with the primary color, but the hue never drifts. Red means danger in every preset.
+
+### Foreground pairs (8)
+
+```ts
+theme.light.colors.onPrimary    // Text/icons placed on primary backgrounds
+theme.light.colors.onSecondary  // Text/icons placed on secondary backgrounds
+theme.light.colors.onTertiary   // Text/icons placed on tertiary backgrounds
+theme.light.colors.onQuaternary // Text/icons placed on quaternary backgrounds
+theme.light.colors.onDanger     // Text/icons placed on danger backgrounds
+theme.light.colors.onSuccess    // Text/icons placed on success backgrounds
+theme.light.colors.onWarning    // Text/icons placed on warning backgrounds
+theme.light.colors.onInfo       // Text/icons placed on info backgrounds
+```
+
+Each `on*` token is either near-white or near-black depending on which passes WCAG AA with its paired background. The library checks both and picks the higher-contrast option.
+
+This is the pattern you use every time you fill a surface with an intent color:
+
+```ts
+// The paired pattern — always correct
+<Badge style={{
+  backgroundColor: theme.light.colors.danger,
+  color: theme.light.colors.onDanger,
+}}>
+  Error
+</Badge>
+```
+
+You never call a contrast checker. You never look up which text color works on red. `onDanger` is the answer, computed and verified.
+
+---
+
+## states — 32 tokens
+
+Every interactive intent color has four behavioral states:
+
+```ts
+theme.light.states.primary.hover     // Cursor enters — slightly lighter
+theme.light.states.primary.pressed   // Button held — slightly darker
+theme.light.states.primary.focused   // Keyboard focus — visible, distinct from hover
+theme.light.states.primary.disabled  // Inactive — desaturated, low contrast intentionally
+```
+
+All eight intents follow the same pattern:
+
+```ts
+// The full set
+theme.light.states.primary
+theme.light.states.secondary
+theme.light.states.tertiary
+theme.light.states.quaternary
+theme.light.states.danger
+theme.light.states.success
+theme.light.states.warning
+theme.light.states.info
+```
+
+### Why states matter
+
+The alternative is inventing your own rule. Common ad-hoc approaches and their failure modes:
+
+| Ad-hoc approach | Problem |
+| --------------- | ------- |
+| `opacity: 0.8` on hover | Changes alpha, not lightness. Looks muddy on non-white backgrounds. |
+| `filter: brightness(0.9)` | Works on screenshots, breaks on OKLCH and wide-gamut displays. |
+| Hardcoded hex offset | Consistent on one color. Arbitrary on a different preset. |
+| `opacity: 0.5` for disabled | Fails accessibility — disabled elements should still be visually identifiable, not invisible. |
+
+The generated states are lightness shifts in OKLCH — perceptually consistent regardless of hue.
+
+### Using states in CSS
+
+```css
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.btn-primary:hover    { background: var(--state-primary-hover); }
+.btn-primary:active   { background: var(--state-primary-pressed); }
+.btn-primary:focus-visible { outline: 2px solid var(--state-primary-focused); }
+.btn-primary:disabled { background: var(--state-primary-disabled); cursor: not-allowed; }
+```
+
+Four lines cover the entire interactive lifecycle.
+
+---
+
+## surfaceElevation — 4 tokens
+
+```ts
+theme.light.surfaceElevation.card      // Base elevated surface. Cards, sheets.
+theme.light.surfaceElevation.elevated  // Second level. Floating panels, bottom sheets.
+theme.light.surfaceElevation.modal     // Third level. Modals, dialogs, drawers.
+theme.light.surfaceElevation.popover   // Top level. Tooltips, dropdowns, menus.
+```
+
+Elevation is a lightness step above `surface`. In light mode the steps go slightly lighter. In dark mode they go slightly lighter too — which matches the Material Design and iOS elevation conventions (dark surfaces get lighter as they rise, not darker).
+
+```ts
+// Ocean light mode — subtle steps upward
+theme.light.colors.background          // oklch(0.98 0.005 220) — base
+theme.light.colors.surface             // oklch(1.00 0.002 220) — one step up
+theme.light.surfaceElevation.card      // oklch(1.00 0.003 220) — card layer
+theme.light.surfaceElevation.elevated  // oklch(0.99 0.005 220) — floating
+theme.light.surfaceElevation.modal     // oklch(0.98 0.006 220) — modal
+theme.light.surfaceElevation.popover   // oklch(0.97 0.007 220) — dropdown
+```
+
+The shifts are subtle by design. Elevation depth is communicated primarily through shadow (which you own) and context (position in the DOM), with color as a secondary signal.
+
+---
+
+## spacing — 6 steps
+
+```ts
+theme.light.spacing.xs   // Extra small
+theme.light.spacing.sm   // Small
+theme.light.spacing.md   // Medium (base)
+theme.light.spacing.lg   // Large
+theme.light.spacing.xl   // Extra large
+theme.light.spacing.xxl  // Double extra large
+```
+
+Values in pixels for `spacing: 'default'`:
+
+| Token | Value |
+| ----- | ----- |
+| `xs` | 4px |
+| `sm` | 8px |
+| `md` | 12px |
+| `lg` | 16px |
+| `xl` | 24px |
+| `xxl` | 40px |
+
+For `spacing: 'compact'` all values are tighter (roughly 75%). For `spacing: 'spacious'` they are looser (roughly 133%). The ratio between steps stays consistent across scales — the system stays proportional.
+
+```css
+/* Consistent padding in compact and spacious mode — same CSS, different values */
+.card {
+  padding: var(--space-lg);
+  gap: var(--space-md);
+}
+```
+
+---
+
+## radius — 7 steps
+
+```ts
+theme.light.radius.none  // 0px — sharp corners
+theme.light.radius.sm    // Small rounding (inputs, tags)
+theme.light.radius.md    // Medium (buttons, cards)
+theme.light.radius.lg    // Large (modals, sheets)
+theme.light.radius.xl    // Extra large (hero cards)
+theme.light.radius.xxl   // Very rounded (avatars, chips)
+theme.light.radius.pill  // 9999px — fully rounded
+```
+
+Values for `radius: 'default'`:
+
+| Token | Value |
+| ----- | ----- |
+| `none` | 0px |
+| `sm` | 4px |
+| `md` | 8px |
+| `lg` | 14px |
+| `xl` | 20px |
+| `xxl` | 28px |
+| `pill` | 9999px |
+
+```ts
+// Change the whole personality of the UI in one line
+generateTheme({ preset: 'ocean', radius: 'none' })   // Sharp, technical
+generateTheme({ preset: 'ocean', radius: 'default' }) // Balanced
+generateTheme({ preset: 'ocean', radius: 'pill' })    // Soft, consumer
+```
+
+---
+
+## fontSizes — 7 steps
+
+```ts
+theme.light.fontSizes.xs   // Caption, legal text
+theme.light.fontSizes.sm   // Helper text, labels
+theme.light.fontSizes.md   // Body text (base)
+theme.light.fontSizes.lg   // Large body, subheading
+theme.light.fontSizes.xl   // Section heading
+theme.light.fontSizes.xxl  // Page heading
+theme.light.fontSizes['3xl'] // Hero heading
+```
+
+Values for `fontSize: 'default'` (in px):
+
+| Token | Value |
+| ----- | ----- |
+| `xs` | 11px |
+| `sm` | 13px |
+| `md` | 15px |
+| `lg` | 18px |
+| `xl` | 22px |
+| `xxl` | 28px |
+| `3xl` | 38px |
+
+The scale is not linear — it is a modular scale based on a ratio (~1.25), so steps feel visually even rather than numerically even.
+
+```css
+h1 { font-size: var(--text-3xl); }
+h2 { font-size: var(--text-xxl); }
+h3 { font-size: var(--text-xl); }
+p  { font-size: var(--text-md); }
+small { font-size: var(--text-sm); }
+```
+
+---
+
+## accessibility — 18 WCAG checks
+
+The `AccessibilityReport` contains pre-computed contrast ratios for the most important color pairings:
+
+```ts
+interface AccessibilityReport {
+  // Text legibility
+  textOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  mutedOnBackground:     { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  textOnSurface:         { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // Brand on background
+  primaryOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  secondaryOnBackground: { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  tertiaryOnBackground:  { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // Foreground on intent (button text legibility)
+  onPrimaryOnPrimary:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onSecondaryOnSecondary:{ ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onTertiaryOnTertiary:  { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // Intent colors on background
+  dangerOnBackground:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  successOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  warningOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  infoOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // On-intent foregrounds
+  onDangerOnDanger:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onSuccessOnSuccess:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onWarningOnWarning:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onInfoOnInfo:          { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // Border visibility
+  borderOnBackground:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+}
+```
+
+WCAG thresholds:
+- **AAA** — ratio ≥ 7.0 (strongest)
+- **AA** — ratio ≥ 4.5 for normal text, ≥ 3.0 for large text
+- **FAIL** — ratio < 4.5
+
+If a check would return `'FAIL'`, the library auto-corrects the color (adjusting OKLCH lightness until the ratio passes) and emits a `console.warn`. You still receive a usable token. You can read the report to see which, if any, required adjustment.
+
+```ts
+const report = theme.light.accessibility;
+
+const failures = Object.entries(report)
+  .filter(([, v]) => v.level === 'FAIL')
+  .map(([k]) => k);
+
+// Almost always empty — the library corrects before you see failures
+console.log(failures);
+```
+
+---
+
+## How tokens relate to each other
+
+Understanding the relationships helps you use the system without guessing:
+
+| Use case | Token |
+| -------- | ----- |
+| Page background | `colors.background` |
+| Card / input background | `colors.surface` or `surfaceElevation.card` |
+| Primary text on background | `colors.text` |
+| Secondary text, captions | `colors.muted` |
+| Lines, dividers | `colors.border` |
+| Main action (button fill) | `colors.primary` |
+| Text on that button | `colors.onPrimary` |
+| Button hover | `states.primary.hover` |
+| Button focus ring | `states.primary.focused` |
+| Disabled button | `states.primary.disabled` |
+| Error message background | `colors.danger` |
+| Text in error message | `colors.onDanger` |
+| Floating dropdown background | `surfaceElevation.popover` |
+| Gap between elements | `spacing.md` |
+| Card corners | `radius.md` |
+| Body text size | `fontSizes.md` |
+
+---
+
+## The TypeScript types
+
+All types are exported from `salt-theme-gen`. When you import the theme in TypeScript you get full autocomplete:
+
+```ts
+import type {
+  GeneratedTheme,
+  GeneratedThemeMode,
+  SemanticColors,
+  IntentStates,
+  SurfaceElevation,
+  SpacingScale,
+  RadiusScale,
+  FontSizeScale,
+  AccessibilityReport,
+  AccessibilityEntry,
+} from 'salt-theme-gen';
+```
+
+Chapter 11 covers the complete type reference, strict mode, and TypeScript integration patterns in detail.
+
+---
+
+## A complete mental model
+
+You now know the full output shape. Before the next chapter, here is the mental model in one paragraph:
+
+> `generateTheme()` returns `light` and `dark` modes. Each mode has **colors** (21 semantic tokens covering brand, surface, text, border, intent, and foreground pairs), **states** (32 behavioral variants for interactive elements), **surfaceElevation** (4 depth layers), three **scales** (spacing, radius, fontSizes), and an **accessibility report** (18 WCAG contrast checks). The tokens are mathematically related — change the preset or scale and every value updates consistently.
+
+The next chapter goes one level up: the 20 built-in presets, how each one is tuned, and how to use a custom hex color instead.
+
+<div class="callout callout-note">
+  <strong>Inspect in the browser:</strong> If you are running this site locally with <code>astro dev</code>, open DevTools and inspect <code>:root</code>. Every CSS variable generated from the Ocean preset is visible there — all 80+ tokens, light and dark.
+</div>
