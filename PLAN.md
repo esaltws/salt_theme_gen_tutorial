@@ -45,19 +45,54 @@ Pain (what the developer suffers today)
 
 ### Core pain points salt-theme-gen addresses
 
+This table is the spine of the tutorial. Every guide chapter and every Dev.to article maps to one or more rows.
+
+#### Colors
+
 | Pain | What developers do today | How salt-theme-gen solves it |
 | ---- | ------------------------ | ----------------------------- |
-| Hardcoded colors spread everywhere | Find-and-replace #3B82F6 across 40 files | One hue → semantic tokens everywhere |
+| Hardcoded colors spread everywhere | Find-and-replace `#3B82F6` across 40 files | One hue → full semantic token map |
 | Dark mode looks terrible | Manually invert colors, test by eye | Mathematically correct dark palette from same input |
-| Can't tell if text is readable | Manually check contrast ratios with tools | AccessibilityReport built into every generated theme |
-| Hover/pressed states are inconsistent | Each dev invents their own rule | 32 state colors derived from one algorithm |
-| Onboarding devs don't know which color to use | Tribal knowledge, Figma spelunking | Semantic names tell you: `surface`, `primary`, `onPrimary` |
-| Brand color change = day of work | Update tokens in 5 places hoping nothing breaks | Change one hue value, regenerate |
-| Web and mobile themes don't match | Two separate color systems | salt-theme-gen + react-native-salt share the same token set |
+| Can't tell if text is readable | Manually check contrast ratios with separate tools | `AccessibilityReport` built into every generated theme |
+| Design system colors fail WCAG | Discovered after launch | Auto-correction built in — library warns and adjusts |
+| Onboarding devs don't know which color to use | Tribal knowledge, Figma spelunking | Semantic names tell you exactly: `surface`, `primary`, `onPrimary` |
+| Brand color change = day of work | Update tokens in 5 places, hope nothing breaks | Change one hue value, regenerate |
+| Web and mobile themes don't match | Two separate color systems to maintain | salt-theme-gen + react-native-salt share the same token set |
 | CSS variables are messy to set up | Write 40+ vars manually | `generateTheme()` returns a ready token map |
-| Design system colors fail WCAG | Discover it after launch | Auto-correction built in — library warns and adjusts |
 
-This table is the spine of the tutorial. Each guide chapter maps to one or more rows.
+#### States
+
+| Pain | What developers do today | How salt-theme-gen solves it |
+| ---- | ------------------------ | ----------------------------- |
+| Hover/pressed/focused states inconsistent across components | Each dev invents their own rule — some darken, some lighten, some use opacity | 32 state colors (8 intents × 4 states) all derived from one algorithm |
+| Disabled state looks different in every component | Manual per-component decisions | `disabled` state tokens generated per intent, consistent everywhere |
+| Focus rings fail contrast requirements | Picked by eye, never WCAG-checked | Focus state derived from the same accessibility-aware algorithm |
+| Interactive feedback feels random | No system for what "active" means visually | `hover`, `pressed`, `focused`, `disabled` — one consistent mental model |
+
+#### Spacing
+
+| Pain | What developers do today | How salt-theme-gen solves it |
+| ---- | ------------------------ | ----------------------------- |
+| Spacing values scattered and arbitrary | `padding: 16` here, `margin: 12` there, `gap: 10` elsewhere | 4 named presets (compact/default/relaxed/spacious) with a full xs→xxl scale |
+| "Make it more compact" = grep across the codebase | Update every hardcoded value manually | Change one preset name, everything reflows |
+| No shared language between designers and devs | Designer says "medium spacing", dev guesses | Named semantic scale: `xs`, `sm`, `md`, `lg`, `xl`, `xxl` |
+
+#### Radius
+
+| Pain | What developers do today | How salt-theme-gen solves it |
+| ---- | ------------------------ | ----------------------------- |
+| Border radius inconsistent across components | `borderRadius: 8` here, `12` there, `4` on the modal | 4 named presets (sharp/default/rounded/pill) with a full scale |
+| Switching from rounded to sharp UI = mass find-replace | Update every component manually | One preset change propagates everywhere |
+| `pill` value differs per component | No standard pill value | Semantic `pill` token (999) always available |
+
+#### Typography
+
+| Pain | What developers do today | How salt-theme-gen solves it |
+| ---- | ------------------------ | ----------------------------- |
+| Font sizes inconsistent — `14` here, `15` there | No scale, every dev picks by eye | 4 named font size presets (small/default/large/editorial) with xs→3xl scale |
+| No semantic font level concept | Devs hardcode sizes — "subtitle" has no standard value | `FontLevel` semantic naming: heading, subheading, body, caption, label, overline |
+| "Make text bigger across the app" = grep fest | Update every `fontSize` value | Change one font size preset, regenerate |
+| Font hierarchy unclear to new team members | Undocumented, tribal knowledge | Named levels make intent obvious: `body`, not `16` |
 
 ---
 
@@ -120,7 +155,9 @@ learn.esalt.net/
 │   │   ├── sass
 │   │   ├── react-native         → salt-theme-gen + react-native-salt pair
 │   │   ├── expo                 → pair guide
-│   │   └── storybook
+│   │   ├── flutter              → build-time token bridge (Node → JSON → Dart)
+│   │   ├── storybook
+│   │   └── no-code              → Bolt.new, Lovable, v0.dev, Framer, Webflow
 │   ├── /api/                      → Full API reference
 │   └── /ai/                       → AI resources (llms.txt, prompt templates, MCP)
 │
@@ -196,11 +233,33 @@ Each guide opens with the pain point it solves, then follows the same template:
 | **React Native** | StyleSheet token object from `generateTheme()` | Full salt-theme-gen + react-native-salt pair shown |
 | **Expo** | Same as React Native + EAS OTA-safe token delivery | Full pair shown |
 
+#### Cross-platform & native
+
+| Platform | Key Bridge Concept | Developer pain solved |
+| -------- | ----------------- | --------------------- |
+| **Flutter** | Token bridge — generate in Node.js → export JSON → consume as Dart `ThemeData` constants | Flutter `ThemeData` hardcoded colors that don't match the web app |
+
+> Flutter is Dart-based so salt-theme-gen cannot be imported directly. The pattern is a **build-time token bridge**: run `generateTheme()` in a Node.js script, write the output as JSON, then import that JSON in Flutter as a generated Dart constants file. One source of truth, two platforms. A code-gen helper script will be provided in the guide.
+
 #### Design tooling
 
 | Tool | Key Bridge Concept | Developer pain solved |
 | ---- | ----------------- | --------------------- |
 | **Storybook** | Global decorator that injects theme tokens | Stories using hardcoded colors instead of design tokens |
+
+#### No-code & AI builders
+
+These platforms generate code — the integration is **prompt-based and token-injection**, not a traditional npm install (except where noted).
+
+| Platform | Integration Pattern | Notes |
+| -------- | ------------------- | ----- |
+| **Bolt.new** | Full npm install — Bolt runs in StackBlitz, so `npm install salt-theme-gen` works directly in the generated project | Best no-code integration — full programmatic access |
+| **Lovable** | Token injection via prompt — generate CSS vars with salt-theme-gen, paste into Lovable's custom CSS or prompt context | Lovable generates React/Tailwind; tokens slot straight into its output |
+| **v0.dev** | Prompt context — paste your token set as a design constraints block before generating components | v0 outputs Tailwind; map token names to Tailwind classes in the prompt |
+| **Framer** | CSS variables in Framer's custom code panel | Framer supports CSS vars directly — drop in the generated `:root` block |
+| **Webflow** | CSS variables via custom code embed | Same pattern as Framer — inject `:root` vars in `<head>` |
+
+> The no-code guide teaches the **"generate once, paste anywhere"** pattern: run `generateTheme()` locally (or in a small script), copy the CSS variable output, and inject it into any AI builder or no-code tool. This makes salt-theme-gen useful even when the dev never writes framework code.
 
 #### The salt-theme-gen + react-native-salt designed pair
 
@@ -279,7 +338,9 @@ e:\salt_theme_gen_tutorial\
 │   │   ├── vanilla-js/
 │   │   ├── tailwind/
 │   │   ├── react-native/
-│   │   └── storybook/
+│   │   ├── flutter/              → token bridge script (Node → JSON → Dart)
+│   │   ├── storybook/
+│   │   └── no-code/              → copy-paste CSS var snippets per platform
 │   └── react-native-salt/
 │
 └── public/                        → Static assets
@@ -331,6 +392,10 @@ hashtags: [designsystem, typescript, webdev, ux]
 | 18 | How to write AI prompts that generate perfect themes with Claude/Cursor | ai design system prompt | +8 Thu |
 | 19 | Building a theme picker UI: using all 20 nature presets | design system presets | +9 Tue |
 | 20 | salt-theme-gen + CSS-in-JS: typed ThemeProvider without the chaos | styled-components theming | +9 Thu |
+| 21 | Your spacing, radius, and font scale — finally a system | design token scale | +10 Tue |
+| 22 | salt-theme-gen + Flutter: one theme for web and mobile via token bridge | flutter theming dart | +10 Thu |
+| 23 | salt-theme-gen + Bolt.new: install the package directly in AI-built apps | bolt.new theming | +11 Tue |
+| 24 | salt-theme-gen + Lovable / v0 / Framer: the paste-and-go token pattern | no-code theming | +11 Thu |
 
 ### react-native-salt — Own tutorial site (separate project)
 
@@ -398,6 +463,8 @@ Part N+1: [title and link]
 | +7 weeks | #15 — Storybook | #16 — Accessibility |
 | +8 weeks | #17 — Color harmonies | #18 — AI prompts |
 | +9 weeks | #19 — Theme picker UI | #20 — CSS-in-JS |
+| +10 weeks | #21 — Spacing/radius/font scale | #22 — Flutter token bridge |
+| +11 weeks | #23 — Bolt.new | #24 — No-code pattern |
 
 ---
 
@@ -413,7 +480,7 @@ Part N+1: [title and link]
 | Week 6 | React Native pair + Expo pair + Storybook + CSS-in-JS + Sass guides |
 | Week 7 | AI resources (llms.txt + prompt templates), site polish, SEO meta |
 | Week 8 | Launch — site live, Dev.to series begins |
-| Weeks 8–17 | 2 Dev.to articles/week — 20 articles over 10 weeks |
+| Weeks 8–19 | 2 Dev.to articles/week — 24 articles over 12 weeks |
 | Month 3 | MCP server scoped; react-native-salt tutorial site planning begins |
 
 ---
