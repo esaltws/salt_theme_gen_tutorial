@@ -1,0 +1,445 @@
+---
+title: salt-theme-gen with SvelteKit
+description: Inject theme tokens server-side in SvelteKit using app.html and a layout load function — zero flash, full SSR, Svelte store for dark mode.
+framework: SvelteKit
+pain: Svelte's scoped styles are perfect for components but terrible for a shared design system. Every component re-declares the same colors. Changing the primary color means touching dozens of files, and dark mode is a separate stylesheet nobody keeps in sync.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-sveltekit
+---
+
+## What you will build
+
+- CSS variables generated at build time and injected into `app.html` — server-rendered in every page's `<head>`
+- A Svelte writable store for dark mode with `localStorage` persistence
+- Scoped component styles that reference `var(--color-*)` with no imports needed
+- Optional typed token access via a Svelte context
+
+**Time required:** 15 minutes.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+---
+
+## Step 1 — Generate theme
+
+Create `src/lib/theme.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`--color-${kebab(k)}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`--surface-${k}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`--space-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`--radius-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`--text-${k}: ${v}px;`);
+
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`--state-${intent}-${state}: ${val};`);
+
+  return lines.join('\n  ');
+}
+
+export const lightVars = modeToVars(theme.light);
+export const darkVars  = modeToVars(theme.dark);
+
+export const themeCSS = `
+:root { ${lightVars} }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${darkVars} } }
+:root[data-theme="dark"]  { ${darkVars} }
+:root[data-theme="light"] { ${lightVars} }
+`.trim();
+```
+
+---
+
+## Step 2 — Inject into app.html
+
+SvelteKit's `app.html` is the outer HTML shell for every page. Add a `%sveltekit.head%` replacement that includes the theme:
+
+First, generate the CSS to a static string. Create a one-time script `scripts/generate-theme-css.ts`:
+
+```ts
+import { writeFileSync } from 'node:fs';
+import { themeCSS } from '../src/lib/theme.ts';
+
+writeFileSync('static/theme.css', themeCSS);
+```
+
+Run it once and add to your build step:
+
+```json
+// package.json
+{
+  "scripts": {
+    "prebuild": "npx tsx scripts/generate-theme-css.ts",
+    "predev": "npx tsx scripts/generate-theme-css.ts",
+    "build": "vite build",
+    "dev": "vite dev"
+  }
+}
+```
+
+Then reference it in `app.html`:
+
+```html
+<!-- app.html -->
+<!doctype html>
+<html lang="en" %sveltekit.attributes%>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    %sveltekit.head%
+    <link rel="stylesheet" href="/theme.css" />
+    <script>
+      (function () {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || t === 'light') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      })();
+    </script>
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>
+```
+
+### Alternative — inline via layout load
+
+If you prefer not to write a static file, inject the CSS string through SvelteKit's layout load:
+
+```ts
+// src/routes/+layout.server.ts
+import { themeCSS } from '$lib/theme';
+
+export function load() {
+  return { themeCSS };
+}
+```
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script lang="ts">
+  import type { PageData } from './$types';
+  export let data: PageData;
+</script>
+
+<svelte:head>
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html `<style>${data.themeCSS}</style>`}
+</svelte:head>
+
+<slot />
+```
+
+`{@html}` injects raw HTML — the only way to get a `<style>` tag with dynamic content into Svelte's `<svelte:head>` without Svelte scoping it.
+
+---
+
+## Step 3 — Global base styles
+
+Create `src/app.css`:
+
+```css
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--state-primary-hover); }
+```
+
+Import in `+layout.svelte`:
+
+```svelte
+<script>
+  import '../app.css';
+</script>
+```
+
+---
+
+## Step 4 — Dark mode store
+
+Create `src/lib/stores/themeMode.ts`:
+
+```ts
+import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
+
+type ThemeMode = 'light' | 'dark' | 'system';
+
+function createThemeMode() {
+  const initial: ThemeMode = browser
+    ? (localStorage.getItem('theme') as ThemeMode) ?? 'system'
+    : 'system';
+
+  const { subscribe, set } = writable<ThemeMode>(initial);
+
+  function apply(mode: ThemeMode) {
+    if (!browser) return;
+    const resolved = mode === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : mode;
+    document.documentElement.setAttribute('data-theme', resolved);
+    localStorage.setItem('theme', mode);
+    set(mode);
+  }
+
+  function toggle() {
+    const current = document.documentElement.getAttribute('data-theme');
+    apply(current === 'dark' ? 'light' : 'dark');
+  }
+
+  if (browser) {
+    apply(initial);
+    window.matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', () => {
+        const saved = localStorage.getItem('theme') as ThemeMode;
+        if (saved === 'system' || !saved) apply('system');
+      });
+  }
+
+  return { subscribe, apply, toggle };
+}
+
+export const themeMode = createThemeMode();
+```
+
+---
+
+## Step 5 — ThemeToggle component
+
+```svelte
+<!-- src/lib/components/ThemeToggle.svelte -->
+<script lang="ts">
+  import { themeMode } from '$lib/stores/themeMode';
+</script>
+
+<button
+  class="toggle"
+  on:click={themeMode.toggle}
+  aria-label="Toggle dark mode"
+>
+  {$themeMode === 'dark' ? '☀ Light' : '◐ Dark'}
+</button>
+
+<style>
+  .toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    transition: border-color 0.15s;
+  }
+  .toggle:hover { border-color: var(--color-primary); }
+</style>
+```
+
+---
+
+## Using tokens in components
+
+### In scoped `<style>` blocks
+
+```svelte
+<!-- src/lib/components/Button.svelte -->
+<script lang="ts">
+  export let intent: 'primary' | 'danger' | 'success' = 'primary';
+  export let disabled = false;
+</script>
+
+<button class="btn btn--{intent}" {disabled}>
+  <slot />
+</button>
+
+<style>
+  .btn {
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-lg);
+    font-size: var(--text-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn--primary  { background: var(--color-primary);  color: var(--color-on-primary); }
+  .btn--danger   { background: var(--color-danger);   color: var(--color-on-danger); }
+  .btn--success  { background: var(--color-success);  color: var(--color-on-success); }
+
+  .btn--primary:hover  { background: var(--state-primary-hover); }
+  .btn--danger:hover   { background: var(--state-danger-hover); }
+  .btn--success:hover  { background: var(--state-success-hover); }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--state-primary-focused);
+    outline-offset: 2px;
+  }
+  .btn:disabled {
+    background: var(--state-primary-disabled);
+    cursor: not-allowed;
+  }
+</style>
+```
+
+### With typed tokens via Svelte context
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<script lang="ts">
+  import { setContext } from 'svelte';
+  import { derived } from 'svelte/store';
+  import { theme } from '$lib/theme';
+  import { themeMode } from '$lib/stores/themeMode';
+
+  const modeTokens = derived(themeMode, ($mode) =>
+    $mode === 'dark' ? theme.dark : theme.light,
+  );
+
+  setContext('themeMode', modeTokens);
+</script>
+
+<slot />
+```
+
+```svelte
+<!-- In any child component -->
+<script lang="ts">
+  import { getContext } from 'svelte';
+  import type { Readable } from 'svelte/store';
+  import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+  const mode = getContext<Readable<GeneratedThemeMode>>('themeMode');
+</script>
+
+<div style:background={$mode.surfaceElevation.card}
+     style:border-radius="{$mode.radius.lg}px"
+     style:padding="{$mode.spacing.xl}px">
+  <slot />
+</div>
+```
+
+Svelte's `style:` directive binds individual CSS properties reactively — cleaner than constructing an object string.
+
+---
+
+## Card component
+
+```svelte
+<!-- src/lib/components/Card.svelte -->
+<script lang="ts">
+  export let title: string;
+  export let body: string;
+</script>
+
+<article class="card">
+  <h3 class="title">{title}</h3>
+  <p class="body">{body}</p>
+  <slot name="footer" />
+</article>
+
+<style>
+  .card {
+    background: var(--surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    transition: border-color 0.15s;
+  }
+  .card:hover { border-color: var(--color-primary); }
+  .title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 var(--space-sm);
+  }
+  .body {
+    font-size: var(--text-md);
+    color: var(--color-muted);
+    line-height: 1.7;
+    margin: 0;
+  }
+</style>
+```
+
+---
+
+## File structure summary
+
+```
+src/
+├── app.css                          ← token-based base styles
+├── app.html                         ← theme.css link + inline script
+├── lib/
+│   ├── theme.ts                     ← generateTheme() + CSS var export
+│   ├── stores/
+│   │   └── themeMode.ts             ← writable store for dark mode
+│   └── components/
+│       ├── ThemeToggle.svelte
+│       ├── Button.svelte
+│       └── Card.svelte
+└── routes/
+    ├── +layout.svelte               ← global CSS import + context setup
+    └── +layout.server.ts            ← optional: serve themeCSS via load
+
+scripts/
+└── generate-theme-css.ts            ← writes static/theme.css at build time
+```
+
+---
+
+## Checklist
+
+- `src/lib/theme.ts` generates and exports `themeCSS` ✓
+- `app.html` links `/theme.css` and runs inline preference script ✓
+- `src/app.css` uses `var(--color-background)` on body ✓
+- `themeMode` store sets `data-theme` on `<html>` ✓
+- `ThemeToggle.svelte` imports and calls `themeMode.toggle` ✓
+- Component `<style>` blocks use CSS variables only — no hardcoded values ✓
+
+<div class="callout callout-note">
+  <strong>Svelte 5 runes:</strong> If you are using Svelte 5 with runes mode, replace the <code>writable</code> store with a <code>$state</code> rune and <code>$derived</code> for the mode tokens. The CSS variable approach and <code>app.html</code> injection are identical — only the reactivity API changes.
+</div>
