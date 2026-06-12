@@ -1,0 +1,32 @@
+---
+import { getCollection, render } from 'astro:content';
+import IntegrationLayout from '../../../layouts/IntegrationLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('integrations');
+
+  return entries.map((entry) => ({
+    params: { slug: entry.slug },
+    props: { entry, integrations: entries.map(e => ({
+      slug: e.slug,
+      title: e.data.title,
+      framework: e.data.framework,
+      href: `/salt-theme-gen/integrations/${e.slug}/`,
+    })) },
+  }));
+}
+
+const { entry, integrations } = Astro.props;
+const { Content } = await render(entry);
+---
+
+<IntegrationLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  framework={entry.data.framework}
+  pain={entry.data.pain}
+  stackblitz={entry.data.stackblitz}
+  integrations={integrations}
+>
+  <Content />
+</IntegrationLayout>

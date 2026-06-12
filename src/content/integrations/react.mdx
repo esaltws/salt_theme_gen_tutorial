@@ -1,0 +1,475 @@
+---
+title: salt-theme-gen with React
+description: Set up a complete light/dark design system in a React app using CSS variables — works with React 18, React 19, Vite, and Create React App.
+framework: React
+pain: You have a React app and a dozen components each with hardcoded colors. Dark mode is an afterthought, hover states are inconsistent, and nobody agrees on which blue to use. Theming feels like a second project on top of the real one.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-react
+---
+
+## What you will build
+
+By the end of this guide your React app will have:
+
+- A complete light and dark color system from one `generateTheme()` call
+- CSS custom properties injected into `:root` — usable in every component without imports
+- A working dark mode toggle that respects `prefers-color-scheme` and persists in `localStorage`
+- Fully typed theme tokens available anywhere in the component tree via context
+
+**Time required:** 15 minutes.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+No other dependencies required.
+
+---
+
+## Step 1 — Generate the theme
+
+Create `src/theme.ts`. This file runs once at startup and exports the CSS variable string:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',      // or: primary: '#your-hex'
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`--color-${kebab(k)}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`--surface-${k}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`--space-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`--radius-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`--text-${k}: ${v}px;`);
+
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`--state-${intent}-${state}: ${val};`);
+
+  return lines.join('\n  ');
+}
+
+export const lightVars = modeToVars(theme.light);
+export const darkVars  = modeToVars(theme.dark);
+
+export const themeCSS = `
+:root { ${lightVars} }
+@media (prefers-color-scheme: dark) { :root { ${darkVars} } }
+:root[data-theme="dark"]  { ${darkVars} }
+:root[data-theme="light"] { ${lightVars} }
+`.trim();
+```
+
+---
+
+## Step 2 — Inject CSS variables into the document
+
+In `src/main.tsx` (or `src/index.tsx`), inject the variables once before React mounts:
+
+```tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import { themeCSS } from './theme';
+
+// Inject theme variables into <head> before first render
+const styleEl = document.createElement('style');
+styleEl.textContent = themeCSS;
+document.head.appendChild(styleEl);
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
+```
+
+That is the entire setup. Every `var(--color-primary)` reference in any component now resolves correctly — in both light and dark mode.
+
+---
+
+## Step 3 — Global base styles
+
+Create `src/index.css` with token-based reset styles:
+
+```css
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--state-primary-hover); }
+
+code, pre {
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: var(--text-sm);
+}
+```
+
+Import it in `main.tsx`:
+
+```tsx
+import './index.css';
+```
+
+---
+
+## Step 4 — Dark mode toggle
+
+Create `src/hooks/useThemeMode.ts`:
+
+```ts
+import { useState, useEffect } from 'react';
+
+type ThemeMode = 'light' | 'dark' | 'system';
+
+function getSystemMode(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+export function useThemeMode() {
+  const [mode, setMode] = useState<ThemeMode>(() => {
+    return (localStorage.getItem('theme') as ThemeMode) ?? 'system';
+  });
+
+  useEffect(() => {
+    const resolved = mode === 'system' ? getSystemMode() : mode;
+    document.documentElement.setAttribute('data-theme', resolved);
+    localStorage.setItem('theme', mode);
+  }, [mode]);
+
+  // Keep 'system' in sync when OS preference changes
+  useEffect(() => {
+    if (mode !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => {
+      document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light');
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [mode]);
+
+  return { mode, setMode };
+}
+```
+
+Create `src/components/ThemeToggle.tsx`:
+
+```tsx
+import { useThemeMode } from '../hooks/useThemeMode';
+
+export function ThemeToggle() {
+  const { mode, setMode } = useThemeMode();
+
+  const next = mode === 'dark' ? 'light' : 'dark';
+
+  return (
+    <button
+      onClick={() => setMode(next)}
+      aria-label={`Switch to ${next} mode`}
+      style={{
+        background: 'none',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-md)',
+        padding: '6px 10px',
+        cursor: 'pointer',
+        color: 'var(--color-text)',
+        fontSize: 'var(--text-sm)',
+      }}
+    >
+      {mode === 'dark' ? '☀ Light' : '◐ Dark'}
+    </button>
+  );
+}
+```
+
+---
+
+## Step 5 — Theme context (optional but recommended)
+
+If you want typed token access in TypeScript without CSS variable strings, provide the theme object through context:
+
+Create `src/context/ThemeContext.tsx`:
+
+```tsx
+import { createContext, useContext, ReactNode } from 'react';
+import type { GeneratedTheme, GeneratedThemeMode } from 'salt-theme-gen';
+import { theme } from '../theme';
+
+interface ThemeContextValue {
+  theme: GeneratedTheme;
+  mode: GeneratedThemeMode;
+  isDark: boolean;
+}
+
+const ThemeContext = createContext<ThemeContextValue>({
+  theme,
+  mode: theme.light,
+  isDark: false,
+});
+
+export function ThemeProvider({ children, isDark }: { children: ReactNode; isDark: boolean }) {
+  return (
+    <ThemeContext.Provider value={{ theme, mode: isDark ? theme.dark : theme.light, isDark }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export function useTheme() {
+  return useContext(ThemeContext);
+}
+```
+
+Update `App.tsx` to wire it up:
+
+```tsx
+import { ThemeProvider } from './context/ThemeContext';
+import { useThemeMode } from './hooks/useThemeMode';
+
+function AppWithTheme() {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark' ||
+    (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  return (
+    <ThemeProvider isDark={isDark}>
+      {/* your app */}
+    </ThemeProvider>
+  );
+}
+```
+
+---
+
+## Using tokens in components
+
+### With CSS variables (recommended)
+
+No imports needed. Variables are available globally:
+
+```tsx
+function PrimaryButton({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        backgroundColor: 'var(--color-primary)',
+        color: 'var(--color-on-primary)',
+        borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-sm) var(--space-lg)',
+        border: 'none',
+        fontSize: 'var(--text-md)',
+        fontWeight: 600,
+        cursor: 'pointer',
+        transition: 'background-color 0.15s',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--state-primary-hover)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--color-primary)';
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+```
+
+### With CSS modules
+
+```css
+/* Button.module.css */
+.button {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:hover   { background: var(--state-primary-hover); }
+.button:active  { background: var(--state-primary-pressed); }
+.button:focus-visible {
+  outline: 2px solid var(--state-primary-focused);
+  outline-offset: 2px;
+}
+.button:disabled {
+  background: var(--state-primary-disabled);
+  cursor: not-allowed;
+}
+```
+
+```tsx
+import styles from './Button.module.css';
+
+export function Button({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return <button className={styles.button} {...props}>{children}</button>;
+}
+```
+
+### With typed context tokens
+
+```tsx
+import { useTheme } from '../context/ThemeContext';
+
+function StatusBadge({ status }: { status: 'success' | 'danger' | 'warning' }) {
+  const { mode } = useTheme();
+
+  return (
+    <span style={{
+      backgroundColor: mode.colors[status],
+      color: mode.colors[`on${status.charAt(0).toUpperCase()}${status.slice(1)}` as keyof typeof mode.colors],
+      borderRadius: `${mode.radius.pill}px`,
+      padding: `${mode.spacing.xs}px ${mode.spacing.sm}px`,
+      fontSize: `${mode.fontSizes.xs}px`,
+      fontWeight: 600,
+    }}>
+      {status}
+    </span>
+  );
+}
+```
+
+---
+
+## Card component example
+
+A complete card that uses elevation, spacing, and border tokens:
+
+```tsx
+function Card({ title, body }: { title: string; body: string }) {
+  return (
+    <div style={{
+      background: 'var(--surface-card)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 'var(--radius-lg)',
+      padding: 'var(--space-xl)',
+    }}>
+      <h3 style={{
+        fontSize: 'var(--text-lg)',
+        fontWeight: 700,
+        color: 'var(--color-text)',
+        marginBottom: 'var(--space-sm)',
+      }}>
+        {title}
+      </h3>
+      <p style={{
+        fontSize: 'var(--text-md)',
+        color: 'var(--color-muted)',
+        lineHeight: 1.7,
+        margin: 0,
+      }}>
+        {body}
+      </p>
+    </div>
+  );
+}
+```
+
+---
+
+## Switching presets at runtime
+
+To let users pick a theme preset:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+function applyPreset(preset: string) {
+  const theme = generateTheme({ preset });
+  const vars = modeToVars(theme.light); // use your modeToVars function from Step 1
+
+  // Overwrite the CSS variable block
+  let styleEl = document.getElementById('salt-theme') as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'salt-theme';
+    document.head.appendChild(styleEl);
+  }
+
+  styleEl.textContent = `
+    :root { ${vars} }
+    @media (prefers-color-scheme: dark) { :root { ${modeToVars(theme.dark)} } }
+    :root[data-theme="dark"]  { ${modeToVars(theme.dark)} }
+    :root[data-theme="light"] { ${vars} }
+  `;
+}
+
+// Call it
+applyPreset('forest');
+applyPreset('sunset');
+```
+
+This re-injects the variable block without reloading the page. All components update instantly because they reference `var()` names, not values.
+
+---
+
+## File structure summary
+
+```
+src/
+├── theme.ts                    ← generateTheme() + CSS var export
+├── main.tsx                    ← injects <style> into <head>
+├── index.css                   ← global token-based base styles
+├── hooks/
+│   └── useThemeMode.ts         ← light/dark/system toggle hook
+├── context/
+│   └── ThemeContext.tsx         ← optional typed token context
+└── components/
+    ├── ThemeToggle.tsx
+    ├── Button.module.css
+    └── Button.tsx
+```
+
+---
+
+## Checklist
+
+- `npm install salt-theme-gen` ✓
+- `src/theme.ts` generates and exports CSS vars ✓
+- `main.tsx` injects `<style>` into `<head>` before mount ✓
+- `index.css` uses `var(--color-background)` on body ✓
+- `useThemeMode` sets `data-theme` on `<html>` ✓
+- Components reference `var(--color-*)` — never hardcoded values ✓
+
+<div class="callout callout-tip">
+  <strong>Using Tailwind CSS?</strong> See the Tailwind CSS integration guide — it shows how to map salt-theme-gen tokens to Tailwind's config so you can use utility classes like <code>bg-primary</code> and <code>text-on-primary</code> with generated values.
+</div>
