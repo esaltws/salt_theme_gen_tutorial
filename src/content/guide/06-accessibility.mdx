@@ -1,0 +1,338 @@
+---
+title: Accessibility Built-in
+description: Understand the AccessibilityReport, all 18 WCAG contrast checks, how auto-correction works, and how to ship accessible color by default.
+order: 6
+pain: You finish the UI, run a contrast checker, and discover six color pairs fail WCAG AA. You fix them by eye, break the visual harmony, and end up with a patchwork of overrides nobody understands.
+---
+
+## Why accessibility is a color problem
+
+Most accessibility failures in production UIs come from one source: **colors chosen without measuring contrast**. Designers pick colors they find attractive. Developers implement them faithfully. Neither party runs a contrast check until QA or an audit catches failures weeks later.
+
+The fix — "darken the text a bit" or "lighten the background slightly" — is applied by eye. It passes the checker but now the color is no longer in your system. It's a one-off patch. The next color you add has the same problem.
+
+`salt-theme-gen` solves this by measuring contrast at generation time, correcting failures before you ever see them, and giving you the report to verify.
+
+---
+
+## The AccessibilityReport
+
+Every generated theme mode includes an `AccessibilityReport`:
+
+```ts
+const { accessibility } = theme.light;
+```
+
+Each entry in the report has the same shape:
+
+```ts
+interface AccessibilityEntry {
+  ratio: number;  // The actual contrast ratio (e.g. 5.2)
+  level: 'AAA' | 'AA' | 'FAIL';
+}
+```
+
+Contrast ratio is calculated using the WCAG 2.1 relative luminance formula. The range is 1:1 (no contrast — same color) to 21:1 (maximum — black on white).
+
+---
+
+## WCAG thresholds
+
+| Level | Minimum ratio | Use case |
+| ----- | ------------- | -------- |
+| **AA** | 4.5:1 | Normal text (under ~18px or non-bold) |
+| **AA Large** | 3.0:1 | Large text (18px+ regular or 14px+ bold) |
+| **AAA** | 7.0:1 | Enhanced — strictest requirement |
+| **FAIL** | < 3.0:1 | Fails all standards |
+
+The library targets **AA as the minimum** for all 18 checks. If a check would fall below 4.5, the relevant color is auto-corrected. AAA is reported when achieved but not required.
+
+---
+
+## All 18 checks
+
+### Text legibility (3)
+
+These are the most critical checks — they validate that readable text is actually readable.
+
+```ts
+accessibility.textOnBackground
+// Primary text color on page background
+// Expected: AAA — this should always be > 7:1
+
+accessibility.mutedOnBackground
+// Muted text (placeholders, captions) on page background
+// Expected: AA — passes 4.5:1 minimum
+
+accessibility.textOnSurface
+// Primary text on card/input surface
+// Expected: AAA — cards are text containers
+```
+
+These three should never fail. If your primary and muted text colors don't clear AA on your background, the entire product is inaccessible. The library ensures they pass.
+
+### Brand colors on background (3)
+
+```ts
+accessibility.primaryOnBackground
+// Primary color used as text or icon color on background
+// Expected: AA
+
+accessibility.secondaryOnBackground
+// Secondary accent as text/icon on background
+// Expected: AA
+
+accessibility.tertiaryOnBackground
+// Tertiary accent as text/icon on background
+// Expected: AA (may be AA Large at lower ratios)
+```
+
+These check whether your brand colors are usable as foreground elements — links, inline icons, active indicators. A brand color that's vivid as a button fill is not necessarily legible as body-weight text.
+
+### Foreground on intent (3)
+
+```ts
+accessibility.onPrimaryOnPrimary
+// onPrimary text on primary background — your button text
+// Expected: AA
+
+accessibility.onSecondaryOnSecondary
+// onSecondary text on secondary background
+// Expected: AA
+
+accessibility.onTertiaryOnTertiary
+// onTertiary text on tertiary background
+// Expected: AA
+```
+
+These are the most important checks for interactive elements. A button with `background: primary, color: onPrimary` must pass here or the label is illegible. The library guarantees these pass by choosing `onPrimary` from near-white or near-black — whichever has the higher contrast with `primary`.
+
+### Intent colors on background (4)
+
+```ts
+accessibility.dangerOnBackground
+// Danger color as text/icon on background (error messages, inline warnings)
+// Expected: AA
+
+accessibility.successOnBackground
+// Success color as text/icon on background
+// Expected: AA
+
+accessibility.warningOnBackground
+// Warning color as text/icon on background
+// Note: yellow/amber is hardest to pass — auto-correction may darken it significantly
+
+accessibility.infoOnBackground
+// Info color as text/icon on background
+// Expected: AA
+```
+
+`warningOnBackground` is the check most likely to require auto-correction. Yellow and amber hues have high luminance, which means they fail contrast against white backgrounds at the saturation levels that make them visually "warning-like." The library darkens the amber until it passes, then reports the corrected value.
+
+### On-intent foregrounds (4)
+
+```ts
+accessibility.onDangerOnDanger
+// Text on danger-colored backgrounds (error banners, danger badges)
+// Expected: AA
+
+accessibility.onSuccessOnSuccess
+// Text on success-colored backgrounds
+// Expected: AA
+
+accessibility.onWarningOnWarning
+// Text on warning-colored backgrounds
+// Expected: AA
+
+accessibility.onInfoOnInfo
+// Text on info-colored backgrounds
+// Expected: AA
+```
+
+### Structural (1)
+
+```ts
+accessibility.borderOnBackground
+// Border color against page background
+// Expected: 3.0:1 — uses Large Text threshold (borders are non-text UI elements)
+```
+
+Borders are structural — they communicate layout, not content. The 3.0:1 threshold (AA Large) applies. A border that is too subtle to distinguish from the background is a usability problem even if it is not a text-legibility failure.
+
+---
+
+## Reading the full report
+
+```ts
+const report = theme.light.accessibility;
+
+// Print all checks
+for (const [check, result] of Object.entries(report)) {
+  const icon = result.level === 'FAIL' ? '✗' : result.level === 'AAA' ? '★' : '✓';
+  console.log(`${icon} ${check}: ${result.ratio.toFixed(1)} (${result.level})`);
+}
+```
+
+Sample output for the Ocean preset (light mode):
+
+```
+★ textOnBackground: 14.1 (AAA)
+✓ mutedOnBackground: 4.8 (AA)
+★ textOnSurface: 13.9 (AAA)
+✓ primaryOnBackground: 5.2 (AA)
+✓ secondaryOnBackground: 4.6 (AA)
+✓ tertiaryOnBackground: 4.5 (AA)
+✓ onPrimaryOnPrimary: 6.1 (AA)
+✓ onSecondaryOnSecondary: 5.4 (AA)
+✓ onTertiaryOnTertiary: 4.8 (AA)
+✓ dangerOnBackground: 5.1 (AA)
+✓ successOnBackground: 4.6 (AA)
+✓ warningOnBackground: 4.5 (AA)
+✓ infoOnBackground: 4.9 (AA)
+✓ onDangerOnDanger: 5.8 (AA)
+✓ onSuccessOnSuccess: 4.7 (AA)
+✓ onWarningOnWarning: 4.6 (AA)
+✓ onInfoOnInfo: 5.2 (AA)
+✓ borderOnBackground: 3.1 (AA)
+```
+
+---
+
+## Auto-correction — how it works
+
+When a generated color would fail its contrast check, the library adjusts it before returning the theme. The adjustment is always a lightness shift in OKLCH:
+
+- If the foreground needs more contrast against a light background → **darken** (`L` decreases)
+- If the foreground needs more contrast against a dark background → **lighten** (`L` increases)
+- Chroma (`C`) and hue (`H`) stay constant — the color identity is preserved
+
+The adjustment is binary-searched in OKLCH space until the contrast ratio just clears 4.5. This produces the minimum possible shift — the corrected color is as close to the original as it can be while still passing.
+
+A `console.warn` is emitted for each corrected color, identifying which check triggered it:
+
+```
+[salt-theme-gen] warningOnBackground was auto-corrected from oklch(0.78 0.16 85)
+to oklch(0.62 0.16 85) to meet WCAG AA (was 2.8, now 4.6).
+```
+
+You can suppress these warnings by setting `{ silent: true }` in the options:
+
+```ts
+generateTheme({ preset: 'honey', silent: true })
+```
+
+---
+
+## Dark mode accessibility
+
+OKLCH makes dark mode contrast predictable. When the library generates dark mode colors, it applies lightness inversions that maintain the same perceptual contrast relationships:
+
+```ts
+// Light mode
+theme.light.colors.text        // L ≈ 0.12 (dark text)
+theme.light.colors.background  // L ≈ 0.98 (light background)
+// → high contrast
+
+// Dark mode
+theme.dark.colors.text         // L ≈ 0.95 (light text)
+theme.dark.colors.background   // L ≈ 0.12 (dark background)
+// → same high contrast, inverted
+```
+
+The accessibility report for dark mode is generated separately and checked independently. Both modes pass AA.
+
+This is why HSL-based dark mode is unreliable: HSL lightness is not perceptually uniform. A color that passes AA at `hsl(L=50%)` in light mode may not pass when you invert to `hsl(L=50%)` in dark mode because different hues have different perceived brightness at the same `L` value. OKLCH's `L` channel is perceptually calibrated, so the math works.
+
+---
+
+## Using the report in CI
+
+You can generate a theme and assert on the accessibility report as part of your build or test suite:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+describe('theme accessibility', () => {
+  const theme = generateTheme({ primary: process.env.BRAND_COLOR ?? '#2563EB' });
+
+  const checks = Object.entries(theme.light.accessibility);
+
+  test.each(checks)('%s passes WCAG AA', (_, result) => {
+    expect(result.level).not.toBe('FAIL');
+  });
+
+  test.each(checks)('%s passes WCAG AA in dark mode', (_, _result) => {
+    const darkResult = theme.dark.accessibility[_ as keyof typeof theme.dark.accessibility];
+    expect(darkResult.level).not.toBe('FAIL');
+  });
+});
+```
+
+This gives you a CI gate: if someone changes the brand color to one that fails contrast after auto-correction (which should not happen, but paranoia is good), the build fails with a clear error.
+
+---
+
+## Building accessible components
+
+The token system makes accessible component implementation mechanical — you do not have to think about contrast at the component level:
+
+### Accessible button
+
+```tsx
+<button
+  style={{
+    backgroundColor: theme.light.colors.primary,
+    color: theme.light.colors.onPrimary,  // pre-checked AA
+  }}
+  onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.light.states.primary.hover}
+  onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.light.colors.primary}
+>
+  Save changes
+</button>
+```
+
+### Accessible error state
+
+```tsx
+<p style={{
+  color: theme.light.colors.danger,       // dangerOnBackground checked AA
+  backgroundColor: theme.light.colors.background,
+}}>
+  Please fix the errors above.
+</p>
+```
+
+### Accessible disabled state
+
+```tsx
+<button
+  disabled
+  style={{
+    backgroundColor: theme.light.states.primary.disabled,
+    color: theme.light.colors.onPrimary,
+    opacity: 1,  // do not use opacity for disabled — use the token
+    cursor: 'not-allowed',
+  }}
+>
+  Processing...
+</button>
+```
+
+The disabled state is desaturated and lightened — it reads as visually inactive without becoming invisible. Avoid adding `opacity: 0.5` on top of the disabled token; the token already communicates the state correctly.
+
+---
+
+## What the report does not check
+
+The 18 checks cover the color pairings that are universally meaningful. They do not cover:
+
+- **Your custom component combinations** — if you put `muted` text on a `surface` background, that pairing is not in the report. Measure it yourself with `theme.light.accessibility.textOnSurface` as a reference, or use a contrast tool with the OKLCH values.
+- **Non-color accessibility** — focus management, keyboard navigation, ARIA attributes, motion preferences. These are yours to implement.
+- **Minimum target sizes** — WCAG 2.5.5 (44×44px touch targets) is not a color concern and is out of scope.
+- **Color as the only differentiator** — using color alone to convey state (red = error, green = success) fails WCAG 1.4.1. Always pair intent color with an icon, label, or pattern.
+
+The report is a color contract, not a full accessibility audit.
+
+<div class="callout callout-tip">
+  <strong>Auditing an existing brand color:</strong> Pass your brand hex to <code>generateTheme({ primary: '#yourColor' })</code> and read <code>theme.light.accessibility</code>. You'll immediately see which pairings pass, which are auto-corrected, and by how much. It's faster than any manual contrast tool for a full system audit.
+</div>
