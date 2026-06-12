@@ -1,0 +1,440 @@
+---
+title: salt-theme-gen with Vue 3
+description: Set up a complete token-based design system in Vue 3 with Vite — CSS variables, dark mode composable, and typed token access via provide/inject.
+framework: Vue 3
+pain: You write CSS in Vue SFCs and end up with colors hardcoded in scoped styles across 40 files. Changing the brand color means a project-wide search and replace. Dark mode is a separate stylesheet you maintain manually and it drifts out of sync.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-vue
+---
+
+## What you will build
+
+- CSS variables injected into `:root` from `main.ts` — available in every `<style>` block without imports
+- A `useTheme()` composable for typed token access in `<script setup>`
+- Dark mode that persists in `localStorage` and respects `prefers-color-scheme`
+- Global provide/inject for the theme object
+
+**Time required:** 15 minutes.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+---
+
+## Step 1 — Generate theme and CSS variables
+
+Create `src/theme.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`--color-${kebab(k)}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`--surface-${k}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`--space-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`--radius-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`--text-${k}: ${v}px;`);
+
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`--state-${intent}-${state}: ${val};`);
+
+  return lines.join('\n  ');
+}
+
+export const lightVars = modeToVars(theme.light);
+export const darkVars  = modeToVars(theme.dark);
+
+export const themeCSS = `
+:root { ${lightVars} }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${darkVars} } }
+:root[data-theme="dark"]  { ${darkVars} }
+:root[data-theme="light"] { ${lightVars} }
+`.trim();
+```
+
+---
+
+## Step 2 — Inject variables and provide theme
+
+In `src/main.ts`, inject the CSS and provide the theme to the entire app:
+
+```ts
+import { createApp } from 'vue';
+import App from './App.vue';
+import { theme, themeCSS } from './theme';
+import './assets/global.css';
+
+// Inject CSS variables before mount
+const styleEl = document.createElement('style');
+styleEl.textContent = themeCSS;
+document.head.appendChild(styleEl);
+
+const app = createApp(App);
+
+// Provide theme globally — injectable in any component
+app.provide('theme', theme);
+
+app.mount('#app');
+```
+
+---
+
+## Step 3 — Global base styles
+
+Create `src/assets/global.css`:
+
+```css
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover { color: var(--state-primary-hover); }
+```
+
+---
+
+## Step 4 — Dark mode composable
+
+Create `src/composables/useThemeMode.ts`:
+
+```ts
+import { ref, watch, onMounted } from 'vue';
+
+type ThemeMode = 'light' | 'dark' | 'system';
+
+const mode = ref<ThemeMode>('system');
+
+function getSystemMode(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyMode(m: ThemeMode) {
+  const resolved = m === 'system' ? getSystemMode() : m;
+  document.documentElement.setAttribute('data-theme', resolved);
+}
+
+export function useThemeMode() {
+  onMounted(() => {
+    const saved = localStorage.getItem('theme') as ThemeMode | null;
+    if (saved) mode.value = saved;
+    applyMode(mode.value);
+
+    // Sync system preference
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', () => {
+      if (mode.value === 'system') applyMode('system');
+    });
+  });
+
+  watch(mode, (m) => {
+    applyMode(m);
+    localStorage.setItem('theme', m);
+  });
+
+  function toggle() {
+    mode.value = mode.value === 'dark' ? 'light' : 'dark';
+  }
+
+  return { mode, toggle };
+}
+```
+
+The composable uses a module-level `ref` so the mode is shared across all components that call `useThemeMode()` — a lightweight alternative to a store for this single piece of state.
+
+---
+
+## Step 5 — Theme inject composable
+
+Create `src/composables/useTheme.ts` for typed token access:
+
+```ts
+import { inject, computed, ref } from 'vue';
+import type { GeneratedTheme, GeneratedThemeMode } from 'salt-theme-gen';
+
+export function useTheme() {
+  const theme = inject<GeneratedTheme>('theme');
+  if (!theme) throw new Error('useTheme: no theme provided. Call app.provide("theme", theme) in main.ts');
+
+  // Reactively return the correct mode based on data-theme attribute
+  const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark');
+
+  // Watch for attribute changes (from ThemeToggle)
+  const observer = new MutationObserver(() => {
+    isDark.value = document.documentElement.getAttribute('data-theme') === 'dark';
+  });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  const mode = computed<GeneratedThemeMode>(() => isDark.value ? theme.dark : theme.light);
+
+  return { theme, mode, isDark };
+}
+```
+
+---
+
+## Using tokens in components
+
+### In `<style>` blocks — CSS variables (recommended)
+
+CSS variables are available in every scoped `<style>` block without any imports:
+
+```vue
+<template>
+  <button class="btn" :disabled="disabled">
+    <slot />
+  </button>
+</template>
+
+<style scoped>
+.btn {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn:hover   { background: var(--state-primary-hover); }
+.btn:active  { background: var(--state-primary-pressed); }
+.btn:focus-visible {
+  outline: 2px solid var(--state-primary-focused);
+  outline-offset: 2px;
+}
+.btn:disabled {
+  background: var(--state-primary-disabled);
+  cursor: not-allowed;
+}
+</style>
+
+<script setup lang="ts">
+defineProps<{ disabled?: boolean }>();
+</script>
+```
+
+### In `<script setup>` — typed tokens via composable
+
+```vue
+<template>
+  <span :style="badgeStyle">{{ label }}</span>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useTheme } from '@/composables/useTheme';
+import type { IntentName } from 'salt-theme-gen';
+
+const props = defineProps<{
+  label: string;
+  intent: IntentName;
+}>();
+
+const { mode } = useTheme();
+
+const badgeStyle = computed(() => {
+  const bg    = mode.value.colors[props.intent];
+  const onKey = `on${props.intent.charAt(0).toUpperCase()}${props.intent.slice(1)}` as keyof typeof mode.value.colors;
+  const color = mode.value.colors[onKey];
+
+  return {
+    backgroundColor: bg,
+    color,
+    borderRadius: `${mode.value.radius.pill}px`,
+    padding: `${mode.value.spacing.xs}px ${mode.value.spacing.md}px`,
+    fontSize: `${mode.value.fontSizes.xs}px`,
+    fontWeight: '600',
+  };
+});
+</script>
+```
+
+---
+
+## ThemeToggle component
+
+```vue
+<!-- src/components/ThemeToggle.vue -->
+<template>
+  <button class="toggle" @click="toggle" :aria-label="`Switch to ${next} mode`">
+    {{ mode === 'dark' ? '☀ Light' : '◐ Dark' }}
+  </button>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useThemeMode } from '@/composables/useThemeMode';
+
+const { mode, toggle } = useThemeMode();
+const next = computed(() => mode.value === 'dark' ? 'light' : 'dark');
+</script>
+
+<style scoped>
+.toggle {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  cursor: pointer;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  transition: border-color 0.15s;
+}
+.toggle:hover { border-color: var(--color-primary); }
+</style>
+```
+
+---
+
+## Card component example
+
+```vue
+<!-- src/components/Card.vue -->
+<template>
+  <article class="card">
+    <h3 class="card-title">{{ title }}</h3>
+    <p class="card-body">{{ body }}</p>
+    <slot name="footer" />
+  </article>
+</template>
+
+<script setup lang="ts">
+defineProps<{ title: string; body: string }>();
+</script>
+
+<style scoped>
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+
+.card-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 var(--space-sm);
+}
+
+.card-body {
+  font-size: var(--text-md);
+  color: var(--color-muted);
+  line-height: 1.7;
+  margin: 0;
+}
+</style>
+```
+
+---
+
+## Using Pinia for theme state (optional)
+
+If your project already uses Pinia, manage theme mode there instead of the module-level ref:
+
+```ts
+// stores/theme.ts
+import { defineStore } from 'pinia';
+import { ref, computed, watch } from 'vue';
+import { theme } from '@/theme';
+
+export const useThemeStore = defineStore('theme', () => {
+  const isDark = ref(false);
+
+  const mode = computed(() => isDark.value ? theme.dark : theme.light);
+
+  function toggle() {
+    isDark.value = !isDark.value;
+    const label = isDark.value ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', label);
+    localStorage.setItem('theme', label);
+  }
+
+  function init() {
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    isDark.value = saved === 'dark' || (!saved && prefersDark);
+    document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light');
+  }
+
+  return { isDark, mode, toggle, init };
+});
+```
+
+Call `themeStore.init()` in `App.vue`'s `onMounted` hook.
+
+---
+
+## File structure summary
+
+```
+src/
+├── theme.ts                       ← generateTheme() + CSS var export
+├── main.ts                        ← inject style + app.provide('theme', theme)
+├── assets/
+│   └── global.css                 ← token-based base styles
+├── composables/
+│   ├── useThemeMode.ts            ← light/dark/system toggle
+│   └── useTheme.ts                ← typed token inject
+└── components/
+    ├── ThemeToggle.vue
+    ├── Button.vue
+    └── Card.vue
+```
+
+---
+
+## Checklist
+
+- `npm install salt-theme-gen` ✓
+- `src/theme.ts` generates and exports CSS vars ✓
+- `main.ts` injects `<style>` and calls `app.provide('theme', theme)` ✓
+- `global.css` uses `var(--color-background)` on body ✓
+- `useThemeMode` composable sets `data-theme` on `<html>` ✓
+- Components use `var(--color-*)` in scoped styles — no hardcoded values ✓
+
+<div class="callout callout-tip">
+  <strong>Nuxt 3:</strong> The Nuxt 3 integration guide covers the same pattern with server-side rendering — CSS variables injected in the Nuxt plugin system and dark mode handled without a flash. See the Nuxt 3 guide in the sidebar.
+</div>
