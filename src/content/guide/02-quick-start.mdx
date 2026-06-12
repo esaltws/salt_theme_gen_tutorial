@@ -1,0 +1,334 @@
+---
+title: Quick Start
+description: Install salt-theme-gen and generate your first complete design system in under 5 minutes.
+order: 2
+pain: Every color tool requires hours of setup, reading docs, and configuring pipelines before you see a single pixel. You want to ship, not configure.
+---
+
+## Install in 30 seconds
+
+`salt-theme-gen` is a zero-dependency npm package. No peer dependencies, no build plugins, no config files.
+
+```bash
+npm install salt-theme-gen
+```
+
+```bash
+# or
+yarn add salt-theme-gen
+pnpm add salt-theme-gen
+```
+
+That's the entire setup. No additional steps.
+
+---
+
+## Your first theme
+
+Open any file in your project — a component, a script, anything. Copy this:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+console.log(theme.light.colors.primary);
+// → oklch(0.55 0.18 220)
+
+console.log(theme.light.colors.onPrimary);
+// → oklch(0.99 0.005 220)
+
+console.log(theme.light.accessibility.primaryOnBackground);
+// → { ratio: 5.2, level: 'AA' }
+```
+
+Run it. You just generated a complete design system from one function call.
+
+---
+
+## What you got
+
+The `theme` object has two keys: `light` and `dark`. Each is a `GeneratedThemeMode` with the same shape.
+
+```ts
+theme.light.colors          // 21 semantic color tokens
+theme.light.states          // 32 state colors (hover, pressed, focused, disabled)
+theme.light.surfaceElevation // 4 elevation layers
+theme.light.spacing         // 6 spacing steps
+theme.light.radius          // 7 border radius steps
+theme.light.fontSizes       // 7 font size steps
+theme.light.accessibility   // 18 WCAG contrast checks
+```
+
+Dark mode is not an inversion or a guess. It is computed from the same OKLCH math as the light mode — different lightness values, same chroma, same hue relationships. The result is perceptually balanced, not manually tweaked.
+
+```ts
+theme.dark.colors.primary
+// → oklch(0.65 0.18 220)  — brighter for dark backgrounds
+
+theme.dark.colors.background
+// → oklch(0.12 0.01 220)  — deep, slightly tinted dark
+```
+
+---
+
+## Exploring your first colors
+
+Let's look at the full color set for the Ocean preset in light mode:
+
+```ts
+const { colors } = theme.light;
+
+// Brand colors
+colors.primary      // Your main action color
+colors.secondary    // Complementary accent
+colors.tertiary     // Supporting accent
+colors.quaternary   // Harmony accent
+
+// Surfaces
+colors.background   // Page background
+colors.surface      // Card, input, sheet background
+
+// Text
+colors.text         // Primary readable text
+colors.muted        // Placeholders, icons, secondary text
+
+// Structural
+colors.border       // Lines, dividers, outlines
+
+// Intents
+colors.danger       // Errors, destructive actions
+colors.success      // Confirmations, positive feedback
+colors.warning      // Caution, non-critical alerts
+colors.info         // Informational, neutral messages
+
+// Foreground pairs (the most underrated feature)
+colors.onPrimary    // Text/icon on primary backgrounds
+colors.onSecondary  // Text/icon on secondary backgrounds
+colors.onTertiary   // Text/icon on tertiary backgrounds
+colors.onQuaternary // Text/icon on quaternary backgrounds
+colors.onDanger     // Text/icon on danger backgrounds
+colors.onSuccess    // Text/icon on success backgrounds
+colors.onWarning    // Text/icon on warning backgrounds
+colors.onInfo       // Text/icon on info backgrounds
+```
+
+The `on*` colors are always WCAG AA compliant with their paired background. You never calculate contrast again.
+
+---
+
+## Exploring state colors
+
+Every interactive intent has four states:
+
+```ts
+const { states } = theme.light;
+
+states.primary.hover     // When the cursor enters
+states.primary.pressed   // While the button is held down
+states.primary.focused   // When focused via keyboard
+states.primary.disabled  // When the element is inactive
+```
+
+All eight intents (`primary`, `secondary`, `tertiary`, `quaternary`, `danger`, `success`, `warning`, `info`) have the same four states — 32 total. They are mathematically derived from the base color. Hover is slightly lighter, pressed is slightly darker, disabled is desaturated.
+
+---
+
+## Applying tokens to real HTML
+
+Here is a complete button using the theme:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({ preset: 'ocean' });
+const { colors, states, radius, spacing } = theme.light;
+
+const buttonStyle = {
+  backgroundColor: colors.primary,
+  color: colors.onPrimary,
+  borderRadius: `${radius.md}px`,
+  padding: `${spacing.sm}px ${spacing.lg}px`,
+  border: 'none',
+  cursor: 'pointer',
+};
+
+const buttonHoverStyle = {
+  backgroundColor: states.primary.hover,
+};
+```
+
+No guess on `onPrimary`. No inventing a hover color. No manual contrast check. The math already ran.
+
+---
+
+## Using CSS variables (recommended for web)
+
+For most web projects, you do not apply tokens inline. You generate CSS custom properties once and reference them everywhere.
+
+**Step 1 — Generate the variables:**
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+const theme = generateTheme({ preset: 'ocean' });
+
+function modeToCSS(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`  --color-${k.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${v};`);
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`  --space-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`  --radius-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`  --text-${k}: ${v}px;`);
+  return lines.join('\n');
+}
+
+const css = `
+:root { ${modeToCSS(theme.light)} }
+@media (prefers-color-scheme: dark) { :root { ${modeToCSS(theme.dark)} } }
+`.trim();
+```
+
+**Step 2 — Inject it once** (in your `<head>`, root layout, or main CSS file):
+
+```html
+<style>
+  :root {
+    --color-primary: oklch(0.55 0.18 220);
+    --color-on-primary: oklch(0.99 0.005 220);
+    --color-background: oklch(0.99 0.005 220);
+    /* ... all tokens ... */
+  }
+</style>
+```
+
+**Step 3 — Use variables everywhere:**
+
+```css
+.button-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.button-primary:hover {
+  background: var(--state-primary-hover);
+}
+```
+
+The variables approach decouples your token generation from your component code. Change the preset, regenerate, done. Your component CSS never changes.
+
+<div class="callout callout-note">
+  <strong>Framework integrations:</strong> The CSS variable pattern above is the same one used in the React, Next.js, Vue, and Astro integrations. The Integrations section after Chapter 11 shows each framework's exact setup — typically 20 lines in the root layout.
+</div>
+
+---
+
+## Try a different preset
+
+Changing your entire design system takes one word:
+
+```ts
+// Ocean (blue)
+generateTheme({ preset: 'ocean' })
+
+// Forest (green)
+generateTheme({ preset: 'forest' })
+
+// Sunset (warm orange-red)
+generateTheme({ preset: 'sunset' })
+
+// Aurora (teal-purple)
+generateTheme({ preset: 'aurora' })
+```
+
+Or skip presets entirely and use your brand color:
+
+```ts
+generateTheme({ primary: '#E11D48' })  // Your exact hex
+```
+
+The library converts your hex to OKLCH, derives all other colors from it, and runs the same math. Your brand color becomes a full system.
+
+---
+
+## Try a different scale
+
+Scales are independent of color. You can mix and match:
+
+```ts
+// Tight layout, rounded, slightly larger text
+generateTheme({
+  preset: 'ocean',
+  spacing: 'compact',
+  radius: 'pill',
+  fontSize: 'large',
+})
+
+// Spacious layout, sharp corners, small text
+generateTheme({
+  preset: 'ocean',
+  spacing: 'spacious',
+  radius: 'none',
+  fontSize: 'small',
+})
+```
+
+Available options:
+- `spacing`: `'compact'` | `'default'` | `'spacious'`
+- `radius`: `'none'` | `'sm'` | `'default'` | `'lg'` | `'pill'`
+- `fontSize`: `'small'` | `'default'` | `'large'`
+
+Chapter 5 covers the exact pixel values and visual effect of each combination.
+
+---
+
+## Check the accessibility report
+
+Every generated theme includes 18 pre-computed WCAG contrast ratios:
+
+```ts
+const { accessibility } = theme.light;
+
+// Text legibility
+accessibility.textOnBackground
+// → { ratio: 14.1, level: 'AAA' }
+
+accessibility.mutedOnBackground
+// → { ratio: 4.6, level: 'AA' }
+
+// Brand colors
+accessibility.primaryOnBackground
+// → { ratio: 5.2, level: 'AA' }
+
+// Intent colors
+accessibility.dangerOnBackground
+// → { ratio: 4.8, level: 'AA' }
+
+accessibility.successOnBackground
+// → { ratio: 4.5, level: 'AA' }
+```
+
+`level` is `'AAA'`, `'AA'`, or `'FAIL'`. If any check returns `'FAIL'`, the library automatically adjusts the color and logs a warning — you still get a usable, compliant token.
+
+You ship accessible colors by default, not by remembering to check.
+
+---
+
+## What's next
+
+You now have a working theme and understand the output shape. The next chapter goes deeper: every field in `GeneratedTheme`, how tokens relate to each other, and how to build intuition for the output before writing component code.
+
+<div class="callout callout-tip">
+  <strong>5-minute checkpoint:</strong> You installed the package, called <code>generateTheme()</code>, read colors, states, and accessibility results, and applied tokens to CSS variables. That is the entire mental model. Everything after this is depth, not complexity.
+</div>

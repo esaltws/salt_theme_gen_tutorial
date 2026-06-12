@@ -1,0 +1,239 @@
+---
+title: Introduction to salt-theme-gen
+description: Understand why salt-theme-gen exists, what OKLCH color space is, and what you get from one function call.
+order: 1
+pain: You hardcode colors across dozens of files, dark mode looks wrong, hover states are inconsistent, and nobody knows which blue to use. There is no system — just scattered decisions.
+---
+
+## The problem every developer knows
+
+You're three months into a product. The primary button is `#3B82F6`. You use it in 40 places — buttons, links, focus rings, badges, icons. Then the designer sends a Figma update. "We're going warmer. More trust-building."
+
+You spend a day grepping. You replace `#3B82F6` with `#2563EB`. You miss three components. QA finds them. You fix them. Two weeks later, the designer asks why the focus ring is the wrong shade.
+
+This is the color problem in its mildest form.
+
+The darker version: you add dark mode. You invert the colors by eye, test on your monitor, ship it. On someone else's screen it looks washed out. The text on the primary button passes contrast checking in light mode but fails in dark. You find out six months later from a user who is visually impaired.
+
+**The real problem is not the colors themselves. It is the absence of a system.**
+
+---
+
+## Why the usual fixes only partially work
+
+Developers reach for a few familiar tools, each with real tradeoffs:
+
+**CSS variables** — great for centralizing values, but you still have to author 40+ variables by hand, figure out dark mode values yourself, and derive state colors (hover, pressed, disabled) manually. No math, no structure, no accessibility checks.
+
+**Tailwind's color palette** — solves consistency within Tailwind, but it is a fixed palette, not your brand. Mapping semantic meaning (`primary`, `danger`, `surface`) to Tailwind classes leaks implementation details everywhere.
+
+**Design token tools** — powerful, but often require a designer-developer pipeline, external tools, and significant setup. Overkill for a solo developer or small team trying to ship a product.
+
+**Picking colors from Figma** — the designer's job, not yours. And it breaks the moment the designer is unavailable, the team changes, or the brand evolves.
+
+There was no middle ground: a zero-dependency, code-first way to produce a complete, semantically correct, accessible design system from a single decision.
+
+That is what `salt-theme-gen` is.
+
+---
+
+## What is OKLCH?
+
+Before meeting the library, it helps to understand the color science underneath it — briefly and practically.
+
+Most developers think in HEX (`#3B82F6`) or HSL (`hsl(217, 91%, 60%)`). These formats are convenient to write but have a critical flaw: **they are not perceptually uniform**.
+
+What does that mean? Take HSL. Two colors can have the same `L` (lightness) value but look wildly different in brightness to the human eye. A yellow at `hsl(60, 100%, 50%)` looks dramatically brighter than a blue at `hsl(240, 100%, 50%)` — even though both have `L = 50%`.
+
+This matters enormously for dark mode. If you build dark mode by adjusting HSL lightness values, you are guessing. The math looks right on paper. The result looks wrong on screen.
+
+**OKLCH solves this by being perceptually uniform.** An OKLCH color with `L = 0.6` always looks "medium bright" to the human eye, regardless of its hue. When you darken or lighten a color in OKLCH, the perceived change is consistent and predictable.
+
+OKLCH has three channels:
+- **L** — lightness (0 = black, 1 = white) — perceptually accurate
+- **C** — chroma (colorfulness/saturation) — 0 means grey
+- **H** — hue (0–360°, same wheel as HSL)
+
+You do not need to use OKLCH directly. `salt-theme-gen` uses it internally to do all the math — generating harmonious secondary colors, computing correct dark mode values, checking contrast ratios. You give it a color or a preset name. It gives you tokens.
+
+---
+
+## Meet salt-theme-gen
+
+One function. One input. A complete design system.
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({
+  preset: 'ocean',      // or any hex color: primary: '#0E9D8E'
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+```
+
+That is it. `theme` now contains everything your app needs to be consistently styled, light/dark, and accessible.
+
+---
+
+## What you get from one function call
+
+The output is a `GeneratedTheme` object with `light` and `dark` modes. Each mode contains:
+
+### Semantic colors — 21 tokens
+
+Your brand colors and their relationships, all mathematically derived:
+
+| Token | Purpose |
+| ----- | ------- |
+| `primary` | Main brand action color |
+| `secondary` | Complementary accent |
+| `tertiary` | Supporting accent |
+| `quaternary` | Harmony accent (analogous by default) |
+| `background` | Page/screen background |
+| `surface` | Card, sheet, input background |
+| `text` | Primary readable text |
+| `muted` | Subdued text, placeholders, icons |
+| `border` | Lines, dividers, outlines |
+| `danger` | Destructive actions, errors |
+| `success` | Confirmation, positive state |
+| `warning` | Caution, non-critical alerts |
+| `info` | Informational, neutral alerts |
+| `onPrimary` | Text/icon on `primary` background |
+| `onSecondary` | Text/icon on `secondary` background |
+| `onTertiary` | Text/icon on `tertiary` background |
+| `onQuaternary` | Text/icon on `quaternary` background |
+| `onDanger` | Text/icon on `danger` background |
+| `onSuccess` | Text/icon on `success` background |
+| `onWarning` | Text/icon on `warning` background |
+| `onInfo` | Text/icon on `info` background |
+
+The `on*` colors are the most underrated feature. They tell you what to render *on top of* each intent color — and they are WCAG-checked automatically.
+
+```ts
+// You never have to guess again
+<Button
+  style={{
+    backgroundColor: theme.light.colors.primary,
+    color: theme.light.colors.onPrimary, // always readable
+  }}
+/>
+```
+
+### State colors — 32 tokens
+
+Every interactive intent gets four states, all derived from the same algorithm:
+
+```
+primary   → hover, pressed, focused, disabled
+secondary → hover, pressed, focused, disabled
+tertiary  → hover, pressed, focused, disabled
+quaternary → hover, pressed, focused, disabled
+danger    → hover, pressed, focused, disabled
+success   → hover, pressed, focused, disabled
+warning   → hover, pressed, focused, disabled
+info      → hover, pressed, focused, disabled
+```
+
+No more each developer inventing their own hover rule. No more `opacity: 0.8` on everything. The 32 state colors are consistent and visually correct.
+
+### Surface elevation — 4 tokens
+
+```ts
+theme.light.surfaceElevation.card     // cards, sheets
+theme.light.surfaceElevation.elevated // elevated cards, bottom sheets
+theme.light.surfaceElevation.modal    // modals, dialogs
+theme.light.surfaceElevation.popover  // tooltips, dropdowns, menus
+```
+
+Elevation layers are subtle, mathematically stepped color shifts. Your UI has visual depth without you handpicking every shade.
+
+### Design scales
+
+```ts
+// Spacing — xs, sm, md, lg, xl, xxl (in px)
+theme.light.spacing.md  // 12
+
+// Radius — none, sm, md, lg, xl, xxl, pill
+theme.light.radius.lg   // 14
+
+// Font sizes — xs, sm, md, lg, xl, xxl, 3xl
+theme.light.fontSizes.lg  // 18
+```
+
+Change `spacing: 'compact'` and your entire app tightens up. Change `radius: 'pill'` and every border radius becomes rounded. One decision, global effect.
+
+### Accessibility report
+
+Every generated theme includes an `AccessibilityReport` with 18 contrast ratio checks:
+
+```ts
+theme.light.accessibility.primaryOnBackground
+// → { ratio: 5.2, level: 'AA' }
+
+theme.light.accessibility.textOnBackground
+// → { ratio: 14.1, level: 'AAA' }
+```
+
+If any color fails WCAG AA, the library auto-corrects it and warns you. You ship accessible colors by default, not by accident.
+
+---
+
+## The 20 presets
+
+You do not have to start from a custom color. `salt-theme-gen` ships 20 nature-inspired presets, each tuned to a specific OKLCH hue and chroma:
+
+`peacock` · `ocean` · `forest` · `sunset` · `cherry-blossom` · `arctic` · `desert` · `lavender` · `emerald` · `coral-reef` · `midnight` · `autumn` · `rose-gold` · `sapphire` · `mint` · `volcano` · `twilight` · `honey` · `storm` · `aurora`
+
+```ts
+// Use a preset by name
+generateTheme({ preset: 'aurora' })
+
+// Or use any hex color
+generateTheme({ primary: '#E11D48' })
+```
+
+Chapter 4 covers presets in depth, including how to browse and compare them.
+
+---
+
+## What this guide covers
+
+This guide has 11 chapters. You can read them in order or jump directly to what you need:
+
+| # | Chapter | What you learn |
+| - | ------- | -------------- |
+| **1** | **Introduction** (you are here) | What, why, and the full picture |
+| **2** | Quick Start | Install and generate your first theme in 5 minutes |
+| **3** | Understanding the Output | Explore the full `GeneratedTheme` object |
+| **4** | Color Presets | All 20 presets and custom hex input |
+| **5** | Design Scale Presets | Spacing, radius, and font size scales |
+| **6** | Accessibility Built-in | The `AccessibilityReport` and WCAG compliance |
+| **7** | ColorHarmony & Accents | Quaternary color and harmony strategies |
+| **8** | Adjusting Themes | `adjustTheme()` for post-generation tweaks |
+| **9** | Comparing Themes | `diffTheme()` for design audits |
+| **10** | Validation | `parseThemeJSON()` for storage and APIs |
+| **11** | TypeScript Integration | Full type reference, strict mode |
+
+After the guide, the **Integrations** section shows you how to apply your theme in every major framework — React, Next.js, Vue, Angular, Flutter, Tailwind CSS, and more.
+
+---
+
+## Prerequisites
+
+- Basic JavaScript or TypeScript — you do not need to be an expert
+- A package manager (`npm`, `yarn`, or `pnpm`)
+- No color science knowledge required — the math is handled for you
+
+---
+
+## Ready to build your first theme?
+
+The next chapter takes you from installation to a working theme output in under 5 minutes.
+
+<div class="callout callout-tip">
+  <strong>Tip:</strong> This site is built with <code>salt-theme-gen</code> using the Ocean preset.
+  Every color you see — the primary blue, the surface cards, the muted text — is a generated token.
+  The site is the demo.
+</div>

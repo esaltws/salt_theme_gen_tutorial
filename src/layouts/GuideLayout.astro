@@ -1,0 +1,424 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Chapter {
+  slug: string;
+  order: number;
+  title: string;
+  href: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  pain?: string;
+  order: number;
+  chapters: Chapter[];
+  prev?: Chapter;
+  next?: Chapter;
+}
+
+const { title, description, pain, order, chapters, prev, next } = Astro.props;
+const currentPath = Astro.url.pathname;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="guide-root">
+    <!-- Sidebar -->
+    <aside class="guide-sidebar">
+      <div class="sidebar-inner">
+        <p class="sidebar-section-label">salt-theme-gen</p>
+        <a href="/salt-theme-gen/" class="sidebar-pkg-link">← Package overview</a>
+
+        <p class="sidebar-group-label">Guide</p>
+        <nav class="sidebar-nav">
+          {chapters.map(ch => (
+            <a
+              href={ch.href}
+              class:list={[
+                'sidebar-link',
+                { 'sidebar-link--active': currentPath.includes(ch.slug) },
+              ]}
+            >
+              <span class="sidebar-num">{String(ch.order).padStart(2, '0')}</span>
+              <span class="sidebar-title">{ch.title}</span>
+            </a>
+          ))}
+        </nav>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <article class="guide-article">
+      <!-- Pain callout -->
+      {pain && (
+        <div class="pain-callout">
+          <p class="pain-callout-label">The pain this chapter solves</p>
+          <p class="pain-callout-text">{pain}</p>
+        </div>
+      )}
+
+      <!-- Chapter header -->
+      <header class="guide-header">
+        <p class="chapter-label">Chapter {order}</p>
+        <h1 class="guide-title">{title}</h1>
+      </header>
+
+      <!-- MDX content -->
+      <div class="guide-content">
+        <slot />
+      </div>
+
+      <!-- Prev / Next navigation -->
+      <nav class="guide-pagination">
+        {prev
+          ? (
+            <a href={prev.href} class="pagination-link pagination-link--prev">
+              <span class="pagination-dir">← Previous</span>
+              <span class="pagination-label">{prev.title}</span>
+            </a>
+          )
+          : <div />
+        }
+        {next && (
+          <a href={next.href} class="pagination-link pagination-link--next">
+            <span class="pagination-dir">Next →</span>
+            <span class="pagination-label">{next.title}</span>
+          </a>
+        )}
+      </nav>
+    </article>
+  </div>
+</BaseLayout>
+
+<style>
+  .guide-root {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: calc(100vh - 60px);
+    max-width: 1200px;
+    margin: 0 auto;
+    gap: 0;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────────────── */
+  .guide-sidebar {
+    border-right: 1px solid var(--color-border);
+    position: sticky;
+    top: 60px;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+
+  .sidebar-inner {
+    padding: var(--space-xl) var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .sidebar-section-label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-primary);
+    font-family: 'Fira Code', monospace;
+    margin-bottom: var(--space-xs);
+  }
+
+  .sidebar-pkg-link {
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    text-decoration: none;
+    margin-bottom: var(--space-lg);
+    display: block;
+  }
+
+  .sidebar-pkg-link:hover {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  .sidebar-group-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+    margin-top: var(--space-md);
+    margin-bottom: var(--space-xs);
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 6px var(--space-sm);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .sidebar-link:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .sidebar-link--active {
+    background: var(--color-surface);
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  .sidebar-num {
+    font-family: 'Fira Code', monospace;
+    font-size: 10px;
+    color: var(--color-primary);
+    min-width: 20px;
+    opacity: 0.7;
+  }
+
+  .sidebar-link--active .sidebar-num {
+    opacity: 1;
+  }
+
+  .sidebar-title {
+    flex: 1;
+  }
+
+  /* ── Article ─────────────────────────────────────────────────── */
+  .guide-article {
+    padding: var(--space-xxl);
+    max-width: 760px;
+  }
+
+  .pain-callout {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-danger);
+    border-radius: var(--radius-md);
+    padding: var(--space-md) var(--space-lg);
+    margin-bottom: var(--space-xl);
+  }
+
+  .pain-callout-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-danger);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-xs);
+  }
+
+  .pain-callout-text {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    line-height: 1.6;
+  }
+
+  .chapter-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-sm);
+  }
+
+  .guide-title {
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-xxl);
+    line-height: 1.15;
+  }
+
+  /* ── MDX prose styles ────────────────────────────────────────── */
+  .guide-content :global(h2) {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    margin-top: var(--space-xxl);
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+  }
+
+  .guide-content :global(h3) {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin-top: var(--space-xl);
+    margin-bottom: var(--space-sm);
+    color: var(--color-text);
+  }
+
+  .guide-content :global(p) {
+    font-size: var(--text-md);
+    line-height: 1.8;
+    color: var(--color-muted);
+    margin-bottom: var(--space-lg);
+  }
+
+  .guide-content :global(p strong) {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .guide-content :global(ul),
+  .guide-content :global(ol) {
+    padding-left: var(--space-xl);
+    margin-bottom: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .guide-content :global(li) {
+    font-size: var(--text-md);
+    line-height: 1.7;
+    color: var(--color-muted);
+  }
+
+  .guide-content :global(li strong) {
+    color: var(--color-text);
+  }
+
+  .guide-content :global(pre) {
+    margin-bottom: var(--space-xl);
+    border-radius: var(--radius-lg);
+  }
+
+  .guide-content :global(blockquote) {
+    border-left: 3px solid var(--color-primary);
+    background: var(--color-surface);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: var(--space-md) var(--space-lg);
+    margin-bottom: var(--space-xl);
+  }
+
+  .guide-content :global(blockquote p) {
+    margin-bottom: 0;
+    color: var(--color-text);
+    font-style: italic;
+  }
+
+  .guide-content :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-xl);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .guide-content :global(th) {
+    background: var(--color-surface);
+    padding: var(--space-sm) var(--space-md);
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .guide-content :global(td) {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-muted);
+  }
+
+  .guide-content :global(tr:last-child td) {
+    border-bottom: none;
+  }
+
+  /* Callout shortcodes */
+  .guide-content :global(.callout) {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md) var(--space-lg);
+    margin-bottom: var(--space-xl);
+  }
+
+  .guide-content :global(.callout-tip) {
+    border-left: 3px solid var(--color-success);
+    background: var(--color-surface);
+  }
+
+  .guide-content :global(.callout-note) {
+    border-left: 3px solid var(--color-info);
+    background: var(--color-surface);
+  }
+
+  .guide-content :global(.callout-warning) {
+    border-left: 3px solid var(--color-warning);
+    background: var(--color-surface);
+  }
+
+  /* ── Pagination ──────────────────────────────────────────────── */
+  .guide-pagination {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-top: var(--space-xxl);
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .pagination-link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: var(--space-md) var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    background: var(--color-surface);
+    transition: border-color 0.15s, background 0.15s;
+    min-width: 180px;
+  }
+
+  .pagination-link:hover {
+    border-color: var(--color-primary);
+    background: var(--color-background);
+    text-decoration: none;
+  }
+
+  .pagination-link--next {
+    text-align: right;
+    margin-left: auto;
+  }
+
+  .pagination-dir {
+    font-size: var(--text-xs);
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  .pagination-label {
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    font-weight: 500;
+  }
+
+  @media (max-width: 768px) {
+    .guide-root {
+      grid-template-columns: 1fr;
+    }
+
+    .guide-sidebar {
+      display: none;
+    }
+
+    .guide-article {
+      padding: var(--space-xl) var(--space-lg);
+    }
+  }
+</style>

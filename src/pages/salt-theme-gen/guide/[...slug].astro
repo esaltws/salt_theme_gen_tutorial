@@ -1,0 +1,58 @@
+---
+import { getCollection, render } from 'astro:content';
+import GuideLayout from '../../../layouts/GuideLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('guide');
+  const sorted = entries.sort((a, b) => a.data.order - b.data.order);
+
+  return sorted.map((entry, index) => {
+    const prev = sorted[index - 1];
+    const next = sorted[index + 1];
+
+    return {
+      params: { slug: entry.slug },
+      props: {
+        entry,
+        chapters: sorted.map(e => ({
+          slug: e.slug,
+          order: e.data.order,
+          title: e.data.title,
+          href: `/salt-theme-gen/guide/${e.slug}/`,
+        })),
+        prev: prev
+          ? {
+              slug: prev.slug,
+              order: prev.data.order,
+              title: prev.data.title,
+              href: `/salt-theme-gen/guide/${prev.slug}/`,
+            }
+          : undefined,
+        next: next
+          ? {
+              slug: next.slug,
+              order: next.data.order,
+              title: next.data.title,
+              href: `/salt-theme-gen/guide/${next.slug}/`,
+            }
+          : undefined,
+      },
+    };
+  });
+}
+
+const { entry, chapters, prev, next } = Astro.props;
+const { Content } = await render(entry);
+---
+
+<GuideLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  pain={entry.data.pain}
+  order={entry.data.order}
+  chapters={chapters}
+  prev={prev}
+  next={next}
+>
+  <Content />
+</GuideLayout>
