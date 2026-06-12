@@ -1,0 +1,393 @@
+---
+title: salt-theme-gen with Tailwind CSS
+description: Map salt-theme-gen tokens into Tailwind's config — use bg-primary, text-muted, and border-border as utility classes driven by generated OKLCH values.
+framework: Tailwind CSS
+pain: Tailwind's default palette is beautiful but it's not your brand. You add custom colors to tailwind.config.js, then maintain two separate color systems — one for Tailwind utilities and one for the rest of your CSS. Dark mode doubles the work.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-tailwind
+---
+
+## What you will build
+
+- Tailwind utilities driven by salt-theme-gen tokens: `bg-primary`, `text-muted`, `border-border`, `rounded-md`, `p-lg`
+- A single source of truth — change the preset, both Tailwind classes and CSS variables update
+- Dark mode via Tailwind's `dark:` variant, powered by generated dark tokens
+- Works with Tailwind v3 and Tailwind v4
+
+**Time required:** 15 minutes.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+npm install -D tailwindcss
+```
+
+---
+
+## Step 1 — Generate theme
+
+Create `lib/theme.ts` (or `theme.js` for plain JS projects):
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+export function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`  --color-${kebab(k)}: ${v};`);
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`  --surface-${k}: ${v};`);
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`  --space-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`  --radius-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`  --text-${k}: ${v}px;`);
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`  --state-${intent}-${state}: ${val};`);
+  return lines.join('\n');
+}
+```
+
+---
+
+## Tailwind v4
+
+Tailwind v4 uses a CSS-first config. Map tokens directly in your main CSS file using the `@theme` directive:
+
+### `src/app.css`
+
+```css
+@import 'tailwindcss';
+
+/* Inject salt-theme-gen CSS variables */
+@import './theme-vars.css';
+
+/* Map tokens to Tailwind's theme system */
+@theme {
+  /* Colors */
+  --color-primary:     var(--color-primary);
+  --color-secondary:   var(--color-secondary);
+  --color-tertiary:    var(--color-tertiary);
+  --color-quaternary:  var(--color-quaternary);
+  --color-background:  var(--color-background);
+  --color-surface:     var(--color-surface);
+  --color-text:        var(--color-text);
+  --color-muted:       var(--color-muted);
+  --color-border:      var(--color-border);
+  --color-danger:      var(--color-danger);
+  --color-success:     var(--color-success);
+  --color-warning:     var(--color-warning);
+  --color-info:        var(--color-info);
+  --color-on-primary:  var(--color-on-primary);
+  --color-on-danger:   var(--color-on-danger);
+  --color-on-success:  var(--color-on-success);
+  --color-on-warning:  var(--color-on-warning);
+  --color-on-info:     var(--color-on-info);
+
+  /* Spacing */
+  --spacing-xs:  var(--space-xs);
+  --spacing-sm:  var(--space-sm);
+  --spacing-md:  var(--space-md);
+  --spacing-lg:  var(--space-lg);
+  --spacing-xl:  var(--space-xl);
+  --spacing-xxl: var(--space-xxl);
+
+  /* Border radius */
+  --radius-sm:   var(--radius-sm);
+  --radius-md:   var(--radius-md);
+  --radius-lg:   var(--radius-lg);
+  --radius-xl:   var(--radius-xl);
+  --radius-pill: var(--radius-pill);
+
+  /* Font sizes */
+  --text-xs:   var(--text-xs);
+  --text-sm:   var(--text-sm);
+  --text-md:   var(--text-md);
+  --text-lg:   var(--text-lg);
+  --text-xl:   var(--text-xl);
+  --text-xxl:  var(--text-xxl);
+  --text-3xl:  var(--text-3xl);
+}
+```
+
+Generate `theme-vars.css` from your build script (see Vanilla JS guide) or inline it. Then use Tailwind utilities:
+
+```html
+<button class="bg-primary text-on-primary rounded-md px-lg py-sm font-semibold">
+  Save changes
+</button>
+
+<div class="bg-surface border border-border rounded-lg p-xl">
+  <h3 class="text-text text-lg font-bold">Card title</h3>
+  <p class="text-muted text-md">Card body text.</p>
+</div>
+```
+
+---
+
+## Tailwind v3
+
+In Tailwind v3, extend the config with CSS variable references.
+
+### `tailwind.config.ts`
+
+```ts
+import type { Config } from 'tailwindcss';
+import { theme } from './lib/theme';
+
+// Helper — creates a CSS var reference for Tailwind
+const v = (name: string) => `var(${name})`;
+
+const config: Config = {
+  content: ['./src/**/*.{html,js,ts,jsx,tsx,vue,svelte,astro}'],
+  darkMode: ['attribute', '[data-theme="dark"]'],
+
+  theme: {
+    extend: {
+      colors: {
+        primary:    v('--color-primary'),
+        secondary:  v('--color-secondary'),
+        tertiary:   v('--color-tertiary'),
+        quaternary: v('--color-quaternary'),
+        background: v('--color-background'),
+        surface:    v('--color-surface'),
+        text:       v('--color-text'),
+        muted:      v('--color-muted'),
+        border:     v('--color-border'),
+        danger:     v('--color-danger'),
+        success:    v('--color-success'),
+        warning:    v('--color-warning'),
+        info:       v('--color-info'),
+        'on-primary':  v('--color-on-primary'),
+        'on-secondary':v('--color-on-secondary'),
+        'on-tertiary': v('--color-on-tertiary'),
+        'on-danger':   v('--color-on-danger'),
+        'on-success':  v('--color-on-success'),
+        'on-warning':  v('--color-on-warning'),
+        'on-info':     v('--color-on-info'),
+
+        // State colors
+        'primary-hover':    v('--state-primary-hover'),
+        'primary-pressed':  v('--state-primary-pressed'),
+        'primary-focused':  v('--state-primary-focused'),
+        'primary-disabled': v('--state-primary-disabled'),
+        'danger-hover':     v('--state-danger-hover'),
+        'success-hover':    v('--state-success-hover'),
+      },
+
+      spacing: {
+        xs:  v('--space-xs'),
+        sm:  v('--space-sm'),
+        md:  v('--space-md'),
+        lg:  v('--space-lg'),
+        xl:  v('--space-xl'),
+        xxl: v('--space-xxl'),
+      },
+
+      borderRadius: {
+        sm:   v('--radius-sm'),
+        md:   v('--radius-md'),
+        lg:   v('--radius-lg'),
+        xl:   v('--radius-xl'),
+        xxl:  v('--radius-xxl'),
+        pill: v('--radius-pill'),
+      },
+
+      fontSize: {
+        xs:   v('--text-xs'),
+        sm:   v('--text-sm'),
+        md:   v('--text-md'),
+        lg:   v('--text-lg'),
+        xl:   v('--text-xl'),
+        xxl:  v('--text-xxl'),
+        '3xl':v('--text-3xl'),
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;
+```
+
+`darkMode: ['attribute', '[data-theme="dark"]']` tells Tailwind to enable `dark:` variants when `data-theme="dark"` is on `<html>` — exactly what salt-theme-gen's CSS sets.
+
+---
+
+## Using Tailwind utilities with generated tokens
+
+```html
+<!-- Primary button -->
+<button class="
+  bg-primary text-on-primary
+  hover:bg-primary-hover
+  active:bg-primary-pressed
+  focus-visible:outline-2 focus-visible:outline-primary-focused
+  disabled:bg-primary-disabled disabled:cursor-not-allowed
+  rounded-md px-lg py-sm
+  text-md font-semibold
+  transition-colors
+">
+  Save changes
+</button>
+
+<!-- Danger button -->
+<button class="bg-danger text-on-danger hover:bg-danger-hover rounded-md px-lg py-sm font-semibold">
+  Delete account
+</button>
+
+<!-- Card -->
+<div class="bg-surface border border-border rounded-lg p-xl">
+  <h3 class="text-text text-lg font-bold mb-sm">Card title</h3>
+  <p class="text-muted text-md leading-relaxed">
+    This card uses only generated token utilities.
+  </p>
+</div>
+
+<!-- Alert variants -->
+<div class="bg-danger  text-on-danger  rounded-md p-md">Error message</div>
+<div class="bg-success text-on-success rounded-md p-md">Success message</div>
+<div class="bg-warning text-on-warning rounded-md p-md">Warning message</div>
+<div class="bg-info    text-on-info    rounded-md p-md">Info message</div>
+
+<!-- Badge -->
+<span class="bg-primary text-on-primary text-xs font-semibold rounded-pill px-sm py-xs">
+  New
+</span>
+```
+
+---
+
+## Dark mode with Tailwind
+
+Since `darkMode: ['attribute', '[data-theme="dark"]']` and the CSS variables automatically switch on `data-theme`, **you rarely need `dark:` variants at all** — the CSS variable swap handles it.
+
+Use `dark:` only when Tailwind utilities need different values that CSS variables cannot express:
+
+```html
+<!-- CSS variables handle color automatically — no dark: needed -->
+<div class="bg-background text-text border border-border">
+
+<!-- Use dark: for opacity, shadow, or non-token values -->
+<div class="shadow-sm dark:shadow-lg bg-surface">
+```
+
+This is a key advantage of the CSS variable approach over Tailwind's built-in color palette — you do not have to duplicate every utility with a `dark:` prefix.
+
+---
+
+## Generating Tailwind config from theme programmatically
+
+Instead of hardcoding CSS variable strings, generate the Tailwind config directly from the theme object:
+
+```ts
+// tailwind.config.ts
+import type { Config } from 'tailwindcss';
+import { theme } from './lib/theme';
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+// Build color map from SemanticColors keys
+const colorEntries = Object.keys(theme.light.colors).reduce<Record<string, string>>(
+  (acc, key) => {
+    acc[kebab(key)] = `var(--color-${kebab(key)})`;
+    return acc;
+  },
+  {},
+);
+
+// Build spacing map from SpacingScale keys
+const spacingEntries = Object.keys(theme.light.spacing).reduce<Record<string, string>>(
+  (acc, key) => {
+    acc[key] = `var(--space-${key})`;
+    return acc;
+  },
+  {},
+);
+
+const config: Config = {
+  content: ['./src/**/*.{html,js,ts,jsx,tsx,vue,svelte,astro}'],
+  darkMode: ['attribute', '[data-theme="dark"]'],
+  theme: {
+    extend: {
+      colors: colorEntries,
+      spacing: spacingEntries,
+    },
+  },
+};
+
+export default config;
+```
+
+This approach stays in sync with the library automatically — if a new token is added to `SemanticColors` in a future version, it appears in your Tailwind config without any manual update.
+
+---
+
+## Injecting CSS variables alongside Tailwind
+
+You still need the CSS variable block in your stylesheet. In your main CSS file:
+
+```css
+/* Import Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles using tokens */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+}
+```
+
+And inject the theme CSS variables in your entry point or layout (same as other framework guides — see React or Next.js guide for the injection pattern for your setup).
+
+---
+
+## Token naming in Tailwind classes
+
+| Token | CSS variable | Tailwind class |
+| ----- | ------------ | -------------- |
+| Primary color | `--color-primary` | `bg-primary`, `text-primary`, `border-primary` |
+| On-primary | `--color-on-primary` | `text-on-primary` |
+| Muted text | `--color-muted` | `text-muted` |
+| Surface | `--color-surface` | `bg-surface` |
+| Border | `--color-border` | `border-border` |
+| Danger | `--color-danger` | `bg-danger`, `text-danger` |
+| Medium spacing | `--space-md` | `p-md`, `px-md`, `gap-md` |
+| Large radius | `--radius-lg` | `rounded-lg` |
+| Body font size | `--text-md` | `text-md` |
+
+---
+
+## Checklist
+
+- `lib/theme.ts` generates and exports theme ✓
+- CSS variables injected into `:root` in your layout or entry ✓
+- `tailwind.config.ts` maps tokens to `colors`, `spacing`, `borderRadius`, `fontSize` ✓
+- `darkMode: ['attribute', '[data-theme="dark"]']` ✓
+- Components use `bg-primary text-on-primary` — no hardcoded values ✓
+- `dark:` variants used sparingly — CSS variables handle most color switching ✓
+
+<div class="callout callout-note">
+  <strong>Tailwind's color palette vs generated tokens:</strong> You can keep Tailwind's built-in palette (<code>blue-500</code>, <code>gray-100</code>, etc.) alongside your generated tokens. They do not conflict. The generated tokens live in a separate namespace (<code>primary</code>, <code>surface</code>, <code>muted</code>) and have no overlap with Tailwind's named palette.
+</div>
