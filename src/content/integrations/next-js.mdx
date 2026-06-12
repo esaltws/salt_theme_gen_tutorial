@@ -1,0 +1,465 @@
+---
+title: salt-theme-gen with Next.js
+description: Inject theme tokens server-side in Next.js App Router and Pages Router — no flash of unstyled content, full SSR dark mode support.
+framework: Next.js
+pain: You add dark mode to Next.js and get a flash of the wrong theme on every hard load. CSS-in-JS libraries hydrate late, localStorage reads happen client-side, and the first paint is always wrong. Theming and SSR feel fundamentally incompatible.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-nextjs
+---
+
+## What you will build
+
+- CSS variables generated at build time and injected into the server-rendered HTML
+- Zero flash of unstyled content — the correct theme is in the HTML before JavaScript runs
+- Dark mode that respects `prefers-color-scheme` without a client-side read
+- A `useTheme()` hook for typed token access in client components
+
+**Time required:** 15 minutes.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+---
+
+## Step 1 — Generate theme and CSS variables
+
+Create `lib/theme.ts` at the project root:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`--color-${kebab(k)}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`--surface-${k}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`--space-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`--radius-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`--text-${k}: ${v}px;`);
+
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`--state-${intent}-${state}: ${val};`);
+
+  return lines.join('\n    ');
+}
+
+export const lightVars = modeToVars(theme.light);
+export const darkVars  = modeToVars(theme.dark);
+
+// Inlined into <style> in the server-rendered <head>
+export const themeCSS = `
+  :root {
+    ${lightVars}
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      ${darkVars}
+    }
+  }
+  :root[data-theme="dark"]  { ${darkVars} }
+  :root[data-theme="light"] { ${lightVars} }
+`.trim();
+```
+
+The media query approach means dark mode works with zero JavaScript — the browser applies it natively before any script runs.
+
+---
+
+## App Router setup
+
+### Step 2 — Root layout
+
+In `app/layout.tsx`, inject the theme style tag in the server-rendered `<head>`:
+
+```tsx
+import type { Metadata } from 'next';
+import { themeCSS } from '@/lib/theme';
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: 'My App',
+  description: 'Built with salt-theme-gen',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Theme injected server-side — no FOUC */}
+        <style dangerouslySetInnerHTML={{ __html: themeCSS }} />
+
+        {/* Inline script: apply saved preference before first paint */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var saved = localStorage.getItem('theme');
+            if (saved === 'dark' || saved === 'light') {
+              document.documentElement.setAttribute('data-theme', saved);
+            }
+          })();
+        ` }} />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+The inline script runs synchronously before the browser paints — it reads `localStorage` and sets `data-theme` on `<html>` before any React code runs. Combined with the server-side CSS, the result is zero flash.
+
+`suppressHydrationWarning` on `<html>` silences the React hydration warning caused by the inline script modifying `data-theme` before React takes over.
+
+### Step 3 — Global CSS
+
+Create `app/globals.css`:
+
+```css
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--state-primary-hover); }
+```
+
+### Step 4 — Dark mode toggle (client component)
+
+Create `components/ThemeToggle.tsx`:
+
+```tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+
+type Mode = 'light' | 'dark' | 'system';
+
+export function ThemeToggle() {
+  const [mode, setMode] = useState<Mode>('system');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme') as Mode | null;
+    if (saved) setMode(saved);
+  }, []);
+
+  function toggle() {
+    const next = mode === 'dark' ? 'light' : 'dark';
+    setMode(next);
+    localStorage.setItem('theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      aria-label="Toggle dark mode"
+      style={{
+        background: 'none',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-md)',
+        padding: '6px 10px',
+        cursor: 'pointer',
+        color: 'var(--color-text)',
+        fontSize: 'var(--text-sm)',
+      }}
+    >
+      {mode === 'dark' ? '☀ Light' : '◐ Dark'}
+    </button>
+  );
+}
+```
+
+---
+
+## Pages Router setup
+
+If you are on the Pages Router (`pages/` directory), inject the theme in `pages/_document.tsx`:
+
+```tsx
+import { Html, Head, Main, NextScript } from 'next/document';
+import { themeCSS } from '@/lib/theme';
+
+export default function Document() {
+  return (
+    <Html lang="en">
+      <Head>
+        <style dangerouslySetInnerHTML={{ __html: themeCSS }} />
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var saved = localStorage.getItem('theme');
+            if (saved === 'dark' || saved === 'light') {
+              document.documentElement.setAttribute('data-theme', saved);
+            }
+          })();
+        ` }} />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  );
+}
+```
+
+The rest of the pattern (CSS variables, toggle hook) is identical between App Router and Pages Router.
+
+---
+
+## Theme context for typed access
+
+For Server Components, CSS variables are sufficient — reference `var(--color-primary)` in inline styles or CSS classes.
+
+For Client Components that need typed token objects, create a context:
+
+**`context/ThemeContext.tsx`:**
+
+```tsx
+'use client';
+
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import type { GeneratedTheme, GeneratedThemeMode } from 'salt-theme-gen';
+import { theme } from '@/lib/theme';
+
+interface ThemeContextValue {
+  mode: GeneratedThemeMode;
+  isDark: boolean;
+  toggle: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextValue>({
+  mode: theme.light,
+  isDark: false,
+  toggle: () => {},
+});
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setIsDark(saved === 'dark' || (!saved && prefersDark));
+  }, []);
+
+  function toggle() {
+    const next = !isDark;
+    setIsDark(next);
+    const label = next ? 'dark' : 'light';
+    localStorage.setItem('theme', label);
+    document.documentElement.setAttribute('data-theme', label);
+  }
+
+  return (
+    <ThemeContext.Provider value={{ mode: isDark ? theme.dark : theme.light, isDark, toggle }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => useContext(ThemeContext);
+```
+
+Wrap your layout body (App Router) or `_app.tsx` (Pages Router):
+
+```tsx
+// app/layout.tsx — body content
+<body>
+  <ThemeProvider>
+    {children}
+  </ThemeProvider>
+</body>
+```
+
+---
+
+## Using tokens in components
+
+### Server Components — CSS variables
+
+```tsx
+// app/page.tsx — Server Component, no 'use client' needed
+export default function HomePage() {
+  return (
+    <main style={{ padding: 'var(--space-xxl)' }}>
+      <h1 style={{ color: 'var(--color-text)', fontSize: 'var(--text-3xl)' }}>
+        Hello world
+      </h1>
+      <p style={{ color: 'var(--color-muted)' }}>
+        Styled with salt-theme-gen tokens.
+      </p>
+    </main>
+  );
+}
+```
+
+### Client Components — typed tokens via context
+
+```tsx
+'use client';
+
+import { useTheme } from '@/context/ThemeContext';
+
+export function StatusCard({ status }: { status: 'success' | 'danger' | 'warning' }) {
+  const { mode } = useTheme();
+
+  const bg    = mode.colors[status];
+  const color = mode.colors[`on${status.charAt(0).toUpperCase()}${status.slice(1)}` as keyof typeof mode.colors];
+
+  return (
+    <div style={{
+      background: bg,
+      color,
+      borderRadius: `${mode.radius.md}px`,
+      padding: `${mode.spacing.sm}px ${mode.spacing.lg}px`,
+      fontSize: `${mode.fontSizes.sm}px`,
+      fontWeight: 600,
+    }}>
+      {status}
+    </div>
+  );
+}
+```
+
+### CSS Modules
+
+```css
+/* components/Button.module.css */
+.btn {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn:hover   { background: var(--state-primary-hover); }
+.btn:active  { background: var(--state-primary-pressed); }
+.btn:focus-visible {
+  outline: 2px solid var(--state-primary-focused);
+  outline-offset: 2px;
+}
+.btn:disabled {
+  background: var(--state-primary-disabled);
+  cursor: not-allowed;
+}
+```
+
+```tsx
+import styles from './Button.module.css';
+export function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return <button className={styles.btn} {...props} />;
+}
+```
+
+---
+
+## Tailwind CSS v4 + Next.js
+
+If you use Tailwind CSS v4, you can map tokens to CSS variables in `app/globals.css`:
+
+```css
+@import 'tailwindcss';
+
+@theme {
+  --color-primary:    var(--color-primary);
+  --color-secondary:  var(--color-secondary);
+  --color-background: var(--color-background);
+  --color-surface:    var(--color-surface);
+  --color-text:       var(--color-text);
+  --color-muted:      var(--color-muted);
+  --color-border:     var(--color-border);
+  --color-danger:     var(--color-danger);
+  --color-success:    var(--color-success);
+}
+```
+
+Then use `bg-primary`, `text-text`, `border-border` in your JSX — all driven by generated tokens.
+
+---
+
+## Why not `next-themes`?
+
+`next-themes` is a popular dark mode library. You can use it alongside `salt-theme-gen`:
+
+```tsx
+import { ThemeProvider } from 'next-themes';
+
+// next-themes manages data-theme on <html>
+// salt-theme-gen provides the CSS variables those values switch
+<ThemeProvider attribute="data-theme" defaultTheme="system">
+  {children}
+</ThemeProvider>
+```
+
+`next-themes` handles the `localStorage` persistence and system preference sync. `salt-theme-gen` handles the actual token values the theme switches between. They are complementary — `next-themes` is a UI concern, `salt-theme-gen` is a design system concern.
+
+---
+
+## File structure summary
+
+```
+lib/
+└── theme.ts                    ← generateTheme() + CSS var export
+
+app/                            ← App Router
+├── layout.tsx                  ← injects <style> + inline script
+├── globals.css                 ← token-based base styles
+└── page.tsx
+
+components/
+├── ThemeToggle.tsx             ← 'use client' toggle
+└── Button.module.css
+
+context/
+└── ThemeContext.tsx            ← 'use client' typed token provider
+```
+
+---
+
+## Checklist
+
+- `lib/theme.ts` generates CSS vars at build time ✓
+- `themeCSS` injected in `<head>` via `dangerouslySetInnerHTML` ✓
+- Inline `<script>` applies `data-theme` before first paint ✓
+- `globals.css` uses `var(--color-background)` on body ✓
+- `suppressHydrationWarning` on `<html>` ✓
+- `ThemeToggle` is a Client Component (`'use client'`) ✓
+- No FOUC on hard reload or SSR ✓
+
+<div class="callout callout-note">
+  <strong>Next.js 15 + React 19:</strong> This guide is compatible with Next.js 15 and React 19. The <code>'use client'</code> boundary on the toggle and context provider is required — <code>localStorage</code> and <code>window</code> are not available in Server Components. The theme CSS itself renders server-side with no client dependency.
+</div>
