@@ -1,0 +1,366 @@
+---
+title: salt-theme-gen with Astro
+description: Inject theme tokens at build time in Astro — the cleanest possible integration with zero runtime overhead and full dark mode support.
+framework: Astro
+pain: You want a design system in Astro but every theming library assumes a runtime framework. Astro ships zero JavaScript by default — most token solutions add unnecessary client-side weight just to apply CSS variables.
+stackblitz: https://stackblitz.com/edit/salt-theme-gen-astro
+---
+
+## What you will build
+
+- CSS variables generated at build time and injected into every page's `<head>` — no JavaScript required
+- Dark mode via a tiny inline script (12 lines) that runs before first paint
+- A `theme.ts` utility that generates and exports everything needed
+- Optional: typed token access in framework islands (React, Vue, Svelte)
+
+**Time required:** 10 minutes. Astro's architecture makes this the fastest integration of any framework.
+
+---
+
+## Install
+
+```bash
+npm install salt-theme-gen
+```
+
+---
+
+## Step 1 — Generate theme
+
+Create `src/lib/theme.ts`:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+export const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+export function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`  --color-${kebab(k)}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`  --surface-${k}: ${v};`);
+
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`  --space-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`  --radius-${k}: ${v}px;`);
+
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`  --text-${k}: ${v}px;`);
+
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`  --state-${intent}-${state}: ${val};`);
+
+  return lines.join('\n');
+}
+
+export const themeCSS = `
+:root {
+${modeToVars(theme.light)}
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+${modeToVars(theme.dark)}
+  }
+}
+:root[data-theme="dark"]  {
+${modeToVars(theme.dark)}
+}
+:root[data-theme="light"] {
+${modeToVars(theme.light)}
+}
+`.trim();
+```
+
+---
+
+## Step 2 — Inject in BaseLayout
+
+In your `src/layouts/BaseLayout.astro`, inject the theme CSS server-side:
+
+```astro
+---
+import { themeCSS } from '../lib/theme';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+
+    <!-- Theme CSS — injected at build time, no runtime cost -->
+    <Fragment set:html={`<style>${themeCSS}</style>`} />
+
+    <!-- Apply saved preference before first paint -->
+    <script is:inline>
+      (function () {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || t === 'light') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+```
+
+`<Fragment set:html>` bypasses Astro's style processing and injects raw CSS — required because Astro would otherwise scope or transform the `:root` selectors. `is:inline` on the script prevents Astro from bundling or deferring it, ensuring it runs synchronously before paint.
+
+---
+
+## Step 3 — Global base styles
+
+Create `src/styles/global.css` and import it in `BaseLayout.astro`:
+
+```css
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+
+a { color: var(--color-primary); }
+a:hover { color: var(--state-primary-hover); }
+```
+
+```astro
+---
+// In BaseLayout.astro frontmatter
+import '../styles/global.css';
+---
+```
+
+---
+
+## Step 4 — Dark mode toggle
+
+Create `src/components/ThemeToggle.astro`:
+
+```astro
+<button id="theme-toggle" aria-label="Toggle dark mode">◐</button>
+
+<script>
+  const btn = document.getElementById('theme-toggle')!;
+  const html = document.documentElement;
+
+  function getMode() {
+    return html.getAttribute('data-theme') ??
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  }
+
+  btn.textContent = getMode() === 'dark' ? '☀' : '◐';
+
+  btn.addEventListener('click', () => {
+    const next = getMode() === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    btn.textContent = next === 'dark' ? '☀' : '◐';
+  });
+</script>
+
+<style>
+  #theme-toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--color-text);
+    font-size: var(--text-sm);
+  }
+  #theme-toggle:hover { border-color: var(--color-primary); }
+</style>
+```
+
+---
+
+## Using tokens in Astro components
+
+### In scoped `<style>` blocks
+
+CSS variables are global — they work in any Astro component's scoped styles without any imports:
+
+```astro
+---
+interface Props {
+  title: string;
+  body: string;
+}
+const { title, body } = Astro.props;
+---
+
+<article class="card">
+  <h3 class="card-title">{title}</h3>
+  <p class="card-body">{body}</p>
+</article>
+
+<style>
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+.card-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 var(--space-sm);
+}
+.card-body {
+  font-size: var(--text-md);
+  color: var(--color-muted);
+  line-height: 1.7;
+  margin: 0;
+}
+</style>
+```
+
+### Passing typed tokens to framework islands
+
+If you use React, Vue, or Svelte islands, import the theme object and pass it as a prop:
+
+```astro
+---
+import { theme } from '../lib/theme';
+import MyReactChart from '../components/MyReactChart';
+---
+
+<!-- Pass the full theme — the island handles dark mode client-side -->
+<MyReactChart client:load theme={theme} />
+```
+
+```tsx
+// MyReactChart.tsx — React island
+import type { GeneratedTheme } from 'salt-theme-gen';
+
+interface Props {
+  theme: GeneratedTheme;
+}
+
+export default function MyReactChart({ theme }: Props) {
+  // Use theme.light.colors directly — CSS vars handle the display mode
+  const colors = [
+    theme.light.colors.primary,
+    theme.light.colors.secondary,
+    theme.light.colors.tertiary,
+    theme.light.colors.quaternary,
+  ];
+
+  return <Chart colors={colors} />;
+}
+```
+
+---
+
+## Content collections with typed theme tokens
+
+If you use Astro Content Collections and want theme tokens in your MDX components, provide them through a component override:
+
+```ts
+// astro.config.mjs
+import mdx from '@astrojs/mdx';
+
+export default defineConfig({
+  integrations: [mdx()],
+});
+```
+
+```astro
+---
+// src/layouts/BlogLayout.astro
+import { theme } from '../lib/theme';
+import { render } from 'astro:content';
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+
+<article>
+  <Content />
+</article>
+```
+
+MDX content can reference CSS variables directly in inline styles or via class names — no prop threading needed.
+
+---
+
+## astro.config.mjs reference
+
+A minimal config for a salt-theme-gen powered Astro site:
+
+```js
+import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
+import sitemap from '@astrojs/sitemap';
+
+export default defineConfig({
+  site: 'https://your-site.com',
+  integrations: [mdx(), sitemap()],
+  output: 'static',
+});
+```
+
+No special plugin or adapter needed for `salt-theme-gen`. It runs at build time as a plain Node.js import.
+
+---
+
+## Why Astro is the ideal target
+
+| Property | Astro advantage |
+| -------- | --------------- |
+| Zero runtime JS by default | Theme CSS is static HTML — no hydration cost |
+| `<Fragment set:html>` | Injects raw CSS without Astro's style scoping |
+| `is:inline` scripts | Synchronous execution before first paint |
+| Island architecture | Framework components receive typed tokens as props |
+| Build-time imports | `generateTheme()` runs once at build, not per request |
+
+The entire integration is ~40 lines of code across two files.
+
+---
+
+## Checklist
+
+- `src/lib/theme.ts` generates and exports `themeCSS` ✓
+- `BaseLayout.astro` injects via `<Fragment set:html>` ✓
+- Inline `<script is:inline>` applies `data-theme` before first paint ✓
+- `global.css` uses `var(--color-background)` on body ✓
+- `ThemeToggle.astro` updates `data-theme` and `localStorage` on click ✓
+- No hardcoded colors in any component style block ✓
+
+<div class="callout callout-tip">
+  <strong>You're looking at this integration right now.</strong> This documentation site is built with Astro and salt-theme-gen using exactly this setup. View source on any page — the <code>&lt;style&gt;</code> block in <code>&lt;head&gt;</code> contains every CSS variable you've been reading about.
+</div>
