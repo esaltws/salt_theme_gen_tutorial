@@ -38,11 +38,52 @@ code {
 }
 
 pre {
+  position: relative;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   overflow-x: auto;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  font-size: 11px;
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.4;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+pre:hover .copy-btn,
+pre:focus-within .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-muted);
+}
+
+.copy-btn.copied {
+  color: var(--color-success);
+  border-color: var(--color-success);
+  background: var(--color-surface);
+  opacity: 1;
 }
 
 pre code {
