@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "salt-theme-gen-expo",
+    "slug": "salt-theme-gen-expo",
+    "version": "1.0.0",
+    "scheme": "salt-theme-gen-expo",
+    "web": { "bundler": "metro", "output": "static" },
+    "platforms": ["ios", "android", "web"]
+  }
+}

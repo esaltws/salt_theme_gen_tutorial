@@ -1,0 +1,27 @@
+<div class="root">
+  <h1>salt-theme-gen — Angular</h1>
+  <p class="muted">Preset: ocean &nbsp;·&nbsp; {{ mode }} mode</p>
+
+  <button class="btn" (click)="toggle()">Toggle dark mode</button>
+
+  <div class="card">
+    <h2>Color palette ({{ colors.length }} colors)</h2>
+    <div class="swatches">
+      <div
+        *ngFor="let color of colors"
+        class="swatch"
+        [style.background]="color[1]"
+        [attr.title]="color[0] + ': ' + color[1]"
+      ></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Spacing scale</h2>
+    <div *ngFor="let sp of spacing" class="spacing-row">
+      <span class="spacing-label">{{ sp[0] }}</span>
+      <div class="spacing-bar" [style.width.px]="(+sp[1]) * 1.5"></div>
+      <span class="spacing-value">{{ sp[1] }}px</span>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name": "salt-theme-gen-react-native",
+    "slug": "salt-theme-gen-react-native",
+    "version": "1.0.0",
+    "platforms": ["ios", "android", "web"]
+  }
+}

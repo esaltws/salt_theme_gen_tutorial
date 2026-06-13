@@ -1,0 +1,35 @@
+// Token aliases — use these SCSS variables or the CSS custom properties directly.
+// CSS custom properties are injected at runtime by src/theme.ts injectTheme().
+// This file provides SCSS-level access for compile-time use (e.g. breakpoints, maps).
+
+// Color aliases
+$color-primary:    var(--color-primary);
+$color-secondary:  var(--color-secondary);
+$color-background: var(--color-background);
+$color-surface:    var(--color-surface);
+$color-text:       var(--color-text);
+$color-muted:      var(--color-muted);
+$color-border:     var(--color-border);
+$color-danger:     var(--color-danger);
+$color-success:    var(--color-success);
+
+// Spacing aliases
+$space-xs:  var(--space-xs);
+$space-sm:  var(--space-sm);
+$space-md:  var(--space-md);
+$space-lg:  var(--space-lg);
+$space-xl:  var(--space-xl);
+$space-xxl: var(--space-xxl);
+
+// Radius aliases
+$radius-sm:   var(--radius-sm);
+$radius-md:   var(--radius-md);
+$radius-lg:   var(--radius-lg);
+$radius-pill: var(--radius-pill);
+
+// Font size aliases
+$text-xs: var(--text-xs);
+$text-sm: var(--text-sm);
+$text-md: var(--text-md);
+$text-lg: var(--text-lg);
+$text-xl: var(--text-xl);

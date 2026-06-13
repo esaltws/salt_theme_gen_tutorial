@@ -1,0 +1,64 @@
+@use 'tokens' as t;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: t.$color-background;
+  color: t.$color-text;
+  min-height: 100vh;
+}
+
+.root { padding: t.$space-xl; }
+
+h1 { font-size: t.$text-xl; margin-bottom: t.$space-sm; }
+h2 { font-size: t.$text-md; margin-bottom: t.$space-md; }
+
+.muted {
+  color: t.$color-muted;
+  font-size: t.$text-sm;
+  margin-bottom: t.$space-lg;
+}
+
+.btn {
+  background: t.$color-primary;
+  color: var(--color-on-primary);
+  border: none;
+  padding: t.$space-sm t.$space-md;
+  border-radius: t.$radius-md;
+  cursor: pointer;
+  font-size: t.$text-sm;
+  margin-bottom: t.$space-xl;
+}
+
+.card {
+  background: t.$color-surface;
+  border: 1px solid t.$color-border;
+  border-radius: t.$radius-lg;
+  padding: t.$space-lg;
+  margin-bottom: t.$space-lg;
+}
+
+.swatches {
+  display: flex;
+  gap: t.$space-sm;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: t.$radius-sm;
+  border: 1px solid t.$color-border;
+}
+
+.spacing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.spacing-label { width: 40px; font-size: 12px; color: t.$color-muted; }
+.spacing-bar   { height: 4px; background: t.$color-primary; }
+.spacing-value { font-size: 12px; color: t.$color-muted; }
