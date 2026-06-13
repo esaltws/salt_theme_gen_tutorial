@@ -1,0 +1,385 @@
+# salt-theme-gen — AI assistant reference
+# https://learn.esalt.net/llms.txt
+# Version: 1.2.2
+# Last updated: 2026-06-13
+
+## Package
+
+name: salt-theme-gen
+npm: npm install salt-theme-gen
+license: MIT
+dependencies: zero
+platforms: Node.js 18+, browser (ESM), Deno, Bun
+TypeScript: full types included
+
+## Core API
+
+### generateTheme(options) → GeneratedTheme
+
+The primary function. Call once at app startup.
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({
+  preset:   'ocean',    // preset name (see PRESETS) or hex color '#6366f1'
+  spacing:  'default', // 'compact' | 'default' | 'spacious'
+  radius:   'default', // 'sharp' | 'default' | 'rounded' | 'pill'
+  fontSize: 'default', // 'compact' | 'default' | 'large'
+});
+```
+
+Returns `GeneratedTheme`:
+```ts
+interface GeneratedTheme {
+  light: GeneratedThemeMode;
+  dark:  GeneratedThemeMode;
+}
+```
+
+### GeneratedThemeMode shape
+
+```ts
+interface GeneratedThemeMode {
+  colors: {
+    // Intent colors (brand/semantic)
+    primary:    string;  // OKLCH
+    secondary:  string;
+    tertiary:   string;
+    quaternary: string;
+    danger:     string;
+    success:    string;
+    warning:    string;
+    info:       string;
+    // On-colors (text that sits on intent backgrounds)
+    onPrimary:   string;
+    onSecondary: string;
+    onTertiary:  string;
+    onDanger:    string;
+    onSuccess:   string;
+    onWarning:   string;
+    onInfo:      string;
+    // Neutral colors
+    background: string;
+    surface:    string;
+    text:       string;
+    muted:      string;
+    border:     string;
+    overlay:    string;
+  };
+  states: {
+    // 8 intents × 4 states = 32 state tokens
+    primary:   { hover: string; pressed: string; focused: string; disabled: string; };
+    secondary: { hover: string; pressed: string; focused: string; disabled: string; };
+    tertiary:  { hover: string; pressed: string; focused: string; disabled: string; };
+    danger:    { hover: string; pressed: string; focused: string; disabled: string; };
+    success:   { hover: string; pressed: string; focused: string; disabled: string; };
+    warning:   { hover: string; pressed: string; focused: string; disabled: string; };
+    info:      { hover: string; pressed: string; focused: string; disabled: string; };
+    neutral:   { hover: string; pressed: string; focused: string; disabled: string; };
+  };
+  surfaceElevation: {
+    base:    string;  // lowest surface
+    raised:  string;  // slightly elevated (sticky headers)
+    card:    string;  // card/panel background
+    overlay: string;  // modal/popover backdrop
+  };
+  spacing: {
+    xs: number;  // pixels — default: 4
+    sm: number;  //                   8
+    md: number;  //                   16
+    lg: number;  //                   24
+    xl: number;  //                   32
+    xxl: number; //                   48
+  };
+  radius: {
+    sm:   number;  // default: 4
+    md:   number;  //          8
+    lg:   number;  //          12
+    xl:   number;  //          16
+    xxl:  number;  //          24
+    pill: number;  //          9999
+    full: number;  //          50 (for circles, use 50%)
+  };
+  fontSizes: {
+    xs:   number;  // default: 12
+    sm:   number;  //          14
+    md:   number;  //          16
+    lg:   number;  //          18
+    xl:   number;  //          20
+    xxl:  number;  //          24
+    '3xl': number; //          30
+  };
+  accessibility: {
+    // WCAG 2.1 contrast ratio checks (AA = 4.5:1, AAA = 7:1)
+    primaryOnBackground:   { ratio: number; aa: boolean; aaa: boolean; };
+    primaryOnSurface:      { ratio: number; aa: boolean; aaa: boolean; };
+    textOnBackground:      { ratio: number; aa: boolean; aaa: boolean; };
+    textOnSurface:         { ratio: number; aa: boolean; aaa: boolean; };
+    mutedOnBackground:     { ratio: number; aa: boolean; aaa: boolean; };
+    mutedOnSurface:        { ratio: number; aa: boolean; aaa: boolean; };
+    onPrimaryOnPrimary:    { ratio: number; aa: boolean; aaa: boolean; };
+    onDangerOnDanger:      { ratio: number; aa: boolean; aaa: boolean; };
+    onSuccessOnSuccess:    { ratio: number; aa: boolean; aaa: boolean; };
+    onWarningOnWarning:    { ratio: number; aa: boolean; aaa: boolean; };
+    dangerOnBackground:    { ratio: number; aa: boolean; aaa: boolean; };
+    successOnBackground:   { ratio: number; aa: boolean; aaa: boolean; };
+    warningOnBackground:   { ratio: number; aa: boolean; aaa: boolean; };
+    infoOnBackground:      { ratio: number; aa: boolean; aaa: boolean; };
+    dangerOnSurface:       { ratio: number; aa: boolean; aaa: boolean; };
+    successOnSurface:      { ratio: number; aa: boolean; aaa: boolean; };
+    warningOnSurface:      { ratio: number; aa: boolean; aaa: boolean; };
+    infoOnSurface:         { ratio: number; aa: boolean; aaa: boolean; };
+  };
+}
+```
+
+### adjustTheme(theme, overrides) → GeneratedTheme
+
+Modify specific token values without regenerating. Accepts a deep partial.
+
+```ts
+import { adjustTheme } from 'salt-theme-gen';
+
+const adjusted = adjustTheme(theme, {
+  light: {
+    colors: { primary: '#6366f1' },
+    spacing: { md: 20 },
+  },
+});
+```
+
+### diffTheme(a, b) → ThemeDiff
+
+Compare two themes and return changed tokens.
+
+```ts
+import { diffTheme } from 'salt-theme-gen';
+
+const diff = diffTheme(themeA, themeB);
+// diff.light.colors.primary → { from: '...', to: '...' }
+```
+
+### parseThemeJSON(json) → ParseResult
+
+Runtime validation. Returns discriminated union.
+
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+
+const result = parseThemeJSON(unknownData);
+if (result.success) {
+  // result.theme: GeneratedTheme
+} else {
+  // result.error: string
+}
+```
+
+### contrastRatio(colorA, colorB) → number
+
+Calculate WCAG contrast ratio between two OKLCH colors.
+
+```ts
+import { contrastRatio } from 'salt-theme-gen';
+
+const ratio = contrastRatio(theme.light.colors.primary, theme.light.colors.background);
+// ratio >= 4.5 for WCAG AA
+```
+
+## TypeScript types
+
+All types are exported from 'salt-theme-gen':
+
+```ts
+import type {
+  GeneratedTheme,
+  GeneratedThemeMode,
+  ThemeOptions,
+  ThemeDiff,
+  ParseResult,
+  IntentName,   // 'primary' | 'secondary' | 'tertiary' | ... | 'neutral'
+  StateName,    // 'hover' | 'pressed' | 'focused' | 'disabled'
+  SpacingScale, // 'compact' | 'default' | 'spacious'
+  RadiusScale,  // 'sharp' | 'default' | 'rounded' | 'pill'
+  FontScale,    // 'compact' | 'default' | 'large'
+} from 'salt-theme-gen';
+```
+
+## PRESETS
+
+20 built-in color presets. Use as the `preset` option in generateTheme().
+
+| Preset    | Hue  | Character            |
+|-----------|------|----------------------|
+| ocean     | 235  | Deep blue, calm      |
+| slate     | 215  | Blue-grey, neutral   |
+| rose      | 10   | Warm pink-red        |
+| violet    | 270  | Purple, creative     |
+| amber     | 45   | Warm orange-yellow   |
+| emerald   | 155  | Fresh green          |
+| ruby      | 355  | Rich red             |
+| cobalt    | 225  | Bright blue          |
+| forest    | 140  | Deep earthy green    |
+| sunset    | 30   | Orange-amber         |
+| arctic    | 200  | Ice blue             |
+| copper    | 25   | Warm metallic brown  |
+| midnight  | 245  | Deep blue-violet     |
+| coral     | 20   | Warm coral           |
+| sage      | 150  | Muted sage green     |
+| indigo    | 255  | Indigo               |
+| teal      | 185  | Teal                 |
+| gold      | 50   | Rich gold            |
+| plum      | 290  | Deep purple          |
+| crimson   | 0    | Vivid red            |
+
+Custom: pass any hex color as preset: '#6366f1'
+
+## SCALE OPTIONS
+
+### spacing
+- compact:  xs:3  sm:6  md:12  lg:18  xl:24  xxl:36
+- default:  xs:4  sm:8  md:16  lg:24  xl:32  xxl:48
+- spacious: xs:6  sm:12 md:20  lg:32  xl:48  xxl:72
+
+### radius
+- sharp:    sm:0  md:2  lg:4   xl:6   pill:4
+- default:  sm:4  md:8  lg:12  xl:16  pill:9999
+- rounded:  sm:8  md:12 lg:16  xl:24  pill:9999
+- pill:     sm:16 md:24 lg:32  xl:40  pill:9999
+
+### fontSize
+- compact:  xs:11 sm:13 md:15  lg:17  xl:19  xxl:22 3xl:28
+- default:  xs:12 sm:14 md:16  lg:18  xl:20  xxl:24 3xl:30
+- large:    xs:14 sm:16 md:18  lg:20  xl:22  xxl:28 3xl:36
+
+## CSS VARIABLE NAMING CONVENTION
+
+When converting GeneratedThemeMode to CSS custom properties, use this naming:
+
+```
+colors.primary        → --color-primary
+colors.onPrimary      → --color-on-primary   (camelCase → kebab-case)
+colors.background     → --color-background
+colors.surface        → --color-surface
+colors.text           → --color-text
+colors.muted          → --color-muted
+colors.border         → --color-border
+colors.danger         → --color-danger
+colors.success        → --color-success
+colors.warning        → --color-warning
+colors.info           → --color-info
+
+surfaceElevation.card → --surface-card
+surfaceElevation.base → --surface-base
+
+spacing.md            → --space-md            (not --spacing-md)
+radius.md             → --radius-md
+fontSizes.md          → --text-md             (not --font-md or --fontsize-md)
+
+states.primary.hover  → --state-primary-hover
+states.danger.focused → --state-danger-focused
+```
+
+camelCase → kebab-case conversion: replace /([A-Z])/g with '-$1' then toLowerCase()
+
+## STANDARD INJECTION PATTERN (web)
+
+```ts
+function kebab(str: string): string {
+  return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function modeToVars(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`  --color-${kebab(k)}: ${v};`);
+  for (const [k, v] of Object.entries(mode.surfaceElevation))
+    lines.push(`  --surface-${k}: ${v};`);
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`  --space-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`  --radius-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`  --text-${k}: ${v}px;`);
+  for (const [intent, states] of Object.entries(mode.states))
+    for (const [state, val] of Object.entries(states as Record<string, string>))
+      lines.push(`  --state-${intent}-${state}: ${val};`);
+  return lines.join('\n');
+}
+
+const css = `
+:root {
+${modeToVars(theme.light)}
+}
+:root[data-theme="dark"] {
+${modeToVars(theme.dark)}
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+${modeToVars(theme.dark).split('\n').map(l => '  ' + l).join('\n')}
+  }
+}
+`;
+```
+
+## DARK MODE PATTERN
+
+```html
+<!-- Synchronous inline script — prevents FOUC. Must run before CSS. -->
+<script>
+  (function() {
+    var t = localStorage.getItem('theme');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+```
+
+```js
+// Toggle
+function toggleDark() {
+  var html = document.documentElement;
+  var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+}
+```
+
+## REACT NATIVE NOTE
+
+React Native does not support CSS custom properties.
+Use GeneratedThemeMode JS objects directly:
+
+```tsx
+const { mode } = useTheme(); // GeneratedThemeMode
+const styles = useMemo(() => StyleSheet.create({
+  container: { backgroundColor: mode.colors.background },
+  text:       { color: mode.colors.text, fontSize: mode.fontSizes.md },
+  btn:        { backgroundColor: mode.colors.primary,
+                borderRadius: mode.radius.md,
+                padding: mode.spacing.md },
+}), [mode]);
+```
+
+Always wrap StyleSheet.create in useMemo([mode]) to avoid recreation on every render.
+
+## ACCESSIBILITY
+
+theme.light.accessibility contains 18 WCAG 2.1 contrast ratio checks.
+All AA checks pass by default. If any fail, adjustTheme() can override problem colors.
+
+```ts
+const { accessibility } = theme.light;
+const allAA = Object.values(accessibility).every(c => c.aa);
+// true for all built-in presets
+```
+
+## RELATED PACKAGES
+
+- @esaltws/react-native-salt — component library for React Native, uses GeneratedThemeMode
+- SaltProvider from @esaltws/react-native-salt — pass mode prop, all components inherit tokens
+
+## FULL DOCUMENTATION
+
+https://learn.esalt.net/salt-theme-gen/
+Guide: https://learn.esalt.net/salt-theme-gen/guide/01-introduction/
+Integrations: https://learn.esalt.net/salt-theme-gen/integrations/react/

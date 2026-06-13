@@ -1,0 +1,786 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="AI Resources — salt-theme-gen"
+  description="Prompt templates for Claude, Cursor, ChatGPT, and v0.dev. Use salt-theme-gen with any AI coding assistant — copy the prompt, paste into your tool, done."
+>
+  <div class="ai-page">
+
+    <!-- Hero -->
+    <section class="ai-hero">
+      <div class="container">
+        <nav class="breadcrumb">
+          <a href="/">learn.esalt.net</a>
+          <span>/</span>
+          <a href="/salt-theme-gen/">salt-theme-gen</a>
+          <span>/</span>
+          <span>AI resources</span>
+        </nav>
+
+        <h1 class="ai-title">AI-ready resources</h1>
+        <p class="ai-sub">
+          Copy-paste prompt templates for Claude, Cursor, ChatGPT, GitHub Copilot,
+          and v0.dev. Each prompt gives your AI assistant the exact context it needs
+          to wire up <code>salt-theme-gen</code> correctly — no back-and-forth, no hallucinated API.
+        </p>
+
+        <div class="ai-meta-row">
+          <a href="/llms.txt" class="meta-pill" target="_blank" rel="noopener">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            /llms.txt
+          </a>
+          <span class="meta-sep">·</span>
+          <span class="meta-text">Machine-readable API spec for AI assistants</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick reference -->
+    <section class="ai-section">
+      <div class="container">
+        <h2 class="section-heading">Token name cheatsheet</h2>
+        <p class="section-desc">
+          These are the CSS variable names your AI assistant should use. Paste the table below as context when working in any file.
+        </p>
+
+        <div class="token-table-wrap">
+          <table class="token-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>CSS variable pattern</th>
+                <th>Examples</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Colors</td>
+                <td><code>var(--color-&#123;name&#125;)</code></td>
+                <td><code>--color-primary</code>, <code>--color-background</code>, <code>--color-text</code>, <code>--color-muted</code>, <code>--color-border</code>, <code>--color-danger</code>, <code>--color-success</code>, <code>--color-on-primary</code></td>
+              </tr>
+              <tr>
+                <td>Spacing</td>
+                <td><code>var(--space-&#123;size&#125;)</code></td>
+                <td><code>--space-xs</code> (4px), <code>--space-sm</code> (8px), <code>--space-md</code> (16px), <code>--space-lg</code> (24px), <code>--space-xl</code> (32px), <code>--space-xxl</code> (48px)</td>
+              </tr>
+              <tr>
+                <td>Radius</td>
+                <td><code>var(--radius-&#123;size&#125;)</code></td>
+                <td><code>--radius-sm</code> (4px), <code>--radius-md</code> (8px), <code>--radius-lg</code> (12px), <code>--radius-xl</code> (16px), <code>--radius-pill</code> (9999px)</td>
+              </tr>
+              <tr>
+                <td>Font sizes</td>
+                <td><code>var(--text-&#123;size&#125;)</code></td>
+                <td><code>--text-xs</code> (12px), <code>--text-sm</code> (14px), <code>--text-md</code> (16px), <code>--text-lg</code> (18px), <code>--text-xl</code> (20px), <code>--text-xxl</code> (24px), <code>--text-3xl</code> (30px)</td>
+              </tr>
+              <tr>
+                <td>Surfaces</td>
+                <td><code>var(--surface-&#123;name&#125;)</code></td>
+                <td><code>--surface-base</code>, <code>--surface-raised</code>, <code>--surface-card</code>, <code>--surface-overlay</code></td>
+              </tr>
+              <tr>
+                <td>States</td>
+                <td><code>var(--state-&#123;intent&#125;-&#123;state&#125;)</code></td>
+                <td><code>--state-primary-hover</code>, <code>--state-primary-pressed</code>, <code>--state-primary-focused</code>, <code>--state-primary-disabled</code>, <code>--state-danger-hover</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Generic prompt -->
+    <section class="ai-section ai-section-alt">
+      <div class="container">
+        <h2 class="section-heading">Generic setup prompt</h2>
+        <p class="section-desc">
+          Works with any framework. Paste this into Claude, Cursor, or ChatGPT when starting a new project or adding tokens to an existing one.
+        </p>
+
+        <pre class="prompt-block"><code>{`Add salt-theme-gen design tokens to this project.
+
+INSTALL
+npm install salt-theme-gen
+
+GENERATE THEME
+Create src/theme.ts (or src/theme.js):
+  import { generateTheme } from 'salt-theme-gen';
+  export const theme = generateTheme({
+    preset: 'ocean',      // one of 20 built-in presets, or a hex color like '#6366f1'
+    spacing:  'default',  // 'compact' | 'default' | 'spacious'
+    radius:   'default',  // 'sharp' | 'default' | 'rounded' | 'pill'
+    fontSize: 'default',  // 'compact' | 'default' | 'large'
+  });
+
+INJECT CSS VARIABLES INTO <head>
+Create a function that converts theme.light and theme.dark into CSS custom properties:
+
+  function kebab(str) {
+    return str.replace(/([A-Z])/g, '-$1').toLowerCase();
+  }
+
+  function modeToCSS(mode, selector) {
+    const lines = [];
+    for (const [k, v] of Object.entries(mode.colors))
+      lines.push(\`  --color-\${kebab(k)}: \${v};\`);
+    for (const [k, v] of Object.entries(mode.surfaceElevation))
+      lines.push(\`  --surface-\${k}: \${v};\`);
+    for (const [k, v] of Object.entries(mode.spacing))
+      lines.push(\`  --space-\${k}: \${v}px;\`);
+    for (const [k, v] of Object.entries(mode.radius))
+      lines.push(\`  --radius-\${k}: \${v}px;\`);
+    for (const [k, v] of Object.entries(mode.fontSizes))
+      lines.push(\`  --text-\${k}: \${v}px;\`);
+    for (const [intent, states] of Object.entries(mode.states))
+      for (const [state, val] of Object.entries(states))
+        lines.push(\`  --state-\${intent}-\${state}: \${val};\`);
+    return \`\${selector} {\n\${lines.join('\n')}\n}\`;
+  }
+
+  const css = [
+    modeToCSS(theme.light, ':root'),
+    modeToCSS(theme.dark,  ':root[data-theme="dark"]'),
+  ].join('\n\n');
+
+DARK MODE
+- Toggle dark mode by setting data-theme="dark" on <html>
+- Persist with localStorage.setItem('theme', 'dark')
+- Read preference on page load with a synchronous inline script (before CSS loads)
+
+REPLACE ALL HARDCODED VALUES
+Replace every hex/rgb/hsl color with the appropriate CSS variable:
+  - Brand/action colors → var(--color-primary), var(--color-secondary)
+  - Page background → var(--color-background)
+  - Card/panel background → var(--color-surface) or var(--surface-card)
+  - Body text → var(--color-text)
+  - Secondary text → var(--color-muted)
+  - Dividers/borders → var(--color-border)
+  - Error states → var(--color-danger)
+  - Success states → var(--color-success)
+  - Padding/gap/margin → var(--space-sm), var(--space-md), etc.
+  - Border radius → var(--radius-md), var(--radius-lg)
+  - Font size → var(--text-sm), var(--text-md), etc.
+  - Hover state → var(--state-primary-hover)
+  - Focus ring → var(--state-primary-focused)
+  - Disabled → var(--state-primary-disabled)
+
+DO NOT hardcode any color, spacing, or font size value anywhere.`}</code></pre>
+      </div>
+    </section>
+
+    <!-- Framework prompts -->
+    <section class="ai-section">
+      <div class="container">
+        <h2 class="section-heading">Framework-specific prompts</h2>
+        <p class="section-desc">
+          Each prompt is self-contained — it assumes salt-theme-gen is already installed and provides the full implementation pattern for that framework.
+        </p>
+
+        <div class="prompts-grid">
+
+          <!-- React -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <span class="prompt-fw">React</span>
+              <span class="prompt-tag">ThemeContext + CSS injection</span>
+            </div>
+            <pre class="prompt-block prompt-block-sm"><code>{`Wire up salt-theme-gen in this React project:
+
+1. Create src/theme/index.ts — call generateTheme({ preset: 'ocean' })
+
+2. In src/main.tsx, before ReactDOM.createRoot, inject CSS vars into document.head:
+   - Build a <style> tag from theme.light (for :root) and theme.dark (for :root[data-theme="dark"])
+   - Token names: --color-*, --space-*, --radius-*, --text-*, --surface-*, --state-*
+
+3. Add an inline <script> in index.html <head> (synchronous, no defer/async):
+   var s = localStorage.getItem('theme');
+   if (s) document.documentElement.setAttribute('data-theme', s);
+
+4. Create src/theme/ThemeContext.tsx:
+   - Context with { isDark, toggle } (or 'light'|'dark'|'system' preference)
+   - Reads localStorage on init, matches OS with matchMedia('(prefers-color-scheme: dark)')
+   - On toggle: sets data-theme on document.documentElement + saves to localStorage
+   - Export useTheme() hook
+
+5. Wrap <App /> in ThemeProvider in main.tsx
+
+6. Replace all hardcoded colors/spacing with CSS variables throughout`}</code></pre>
+          </div>
+
+          <!-- Next.js -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <span class="prompt-fw">Next.js</span>
+              <span class="prompt-tag">App Router, no FOUC</span>
+            </div>
+            <pre class="prompt-block prompt-block-sm"><code>{`Add salt-theme-gen to this Next.js App Router project:
+
+1. Create src/lib/theme.ts — generateTheme({ preset: 'ocean' })
+
+2. In app/layout.tsx (root layout):
+   - Build themeCSS string from theme.light (:root) and theme.dark (:root[data-theme="dark"])
+   - Inject via <style dangerouslySetInnerHTML={{ __html: themeCSS }} />
+   - Add suppressHydrationWarning to <html>
+   - Add inline <script> in <head> that reads localStorage and sets data-theme synchronously:
+     (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);})();
+
+3. Create src/components/ThemeProvider.tsx as a Client Component ('use client'):
+   - Manages isDark state, syncs to data-theme attribute
+   - Exports useTheme() hook via context
+
+4. Wrap children in RootLayout with ThemeProvider
+
+5. Replace all hardcoded colors with CSS variables`}</code></pre>
+          </div>
+
+          <!-- Vue 3 -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <span class="prompt-fw">Vue 3</span>
+              <span class="prompt-tag">Composable + provide/inject</span>
+            </div>
+            <pre class="prompt-block prompt-block-sm"><code>{`Add salt-theme-gen to this Vue 3 project:
+
+1. Create src/theme/index.ts — generateTheme({ preset: 'ocean' })
+
+2. In src/main.ts, before app.mount():
+   - Build CSS string from theme.light + theme.dark
+   - Inject via document.createElement('style') into document.head
+   - Read localStorage and set data-theme on document.documentElement
+
+3. Create src/composables/useThemeMode.ts:
+   - module-level ref isDark (shared state, not per-component)
+   - toggle() function: flips isDark, sets data-theme, saves localStorage
+   - Returns { isDark, toggle }
+
+4. In App.vue, provide('theme', { isDark, toggle }) for deep component access
+
+5. Inject in child components with useTheme() composable that wraps inject('theme')
+
+6. Replace hardcoded values with CSS variables — use :style binding for dynamic values`}</code></pre>
+          </div>
+
+          <!-- SvelteKit -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <span class="prompt-fw">SvelteKit</span>
+              <span class="prompt-tag">Writable store + svelte:head</span>
+            </div>
+            <pre class="prompt-block prompt-block-sm"><code>{`Add salt-theme-gen to this SvelteKit project:
+
+1. Create src/lib/theme.ts — generateTheme({ preset: 'ocean' })
+
+2. Create src/lib/stores/theme.ts:
+   - writable<'light'|'dark'>('light') store
+   - init() reads localStorage and matchMedia on client
+   - subscribe to update data-theme attribute on document.documentElement
+
+3. In src/routes/+layout.svelte:
+   - Call init() in onMount
+   - Use {@html themeCSS} inside <svelte:head> for CSS injection
+   - Or: generate static/theme.css via a script and <link> it in app.html
+
+4. Add synchronous inline script to src/app.html <head>:
+   <script>
+     var t = localStorage.getItem('theme');
+     if (t) document.documentElement.setAttribute('data-theme', t);
+   </script>
+
+5. In components, import { theme } from '$lib/stores/theme' and use $theme for reactivity`}</code></pre>
+          </div>
+
+          <!-- Angular -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <span class="prompt-fw">Angular</span>
+              <span class="prompt-tag">Injectable service + signals</span>
+            </div>
+            <pre class="prompt-block prompt-block-sm"><code>{`Add salt-theme-gen to this Angular project:
+
+1. Create src/app/theme/theme.service.ts:
+   - @Injectable({ providedIn: 'root' })
+   - Inject DOCUMENT
+   - isDark = signal(false)
+   - In constructor: read localStorage, call applyMode()
+   - applyMode(dark: boolean): sets data-theme attribute, calls injectCSS()
+   - injectCSS(): creates <style id="salt-theme"> with CSS vars from theme.light/.dark
+   - toggle(): isDark.set(!isDark()), calls applyMode, saves localStorage
+
+2. In src/main.ts, after bootstrapApplication:
+   appRef.injector.get(ThemeService); // eager instantiation
+
+3. CSS variables work through ViewEncapsulation.Emulated — add ::ng-deep or
+   use :host-context([data-theme="dark"]) for dark-mode overrides in component styles
+
+4. Inject ThemeService in components that need the toggle button`}</code></pre>
+          </div>
+
+          <!-- Tailwind CSS -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <span class="prompt-fw">Tailwind CSS</span>
+              <span class="prompt-tag">Extend config with CSS vars</span>
+            </div>
+            <pre class="prompt-block prompt-block-sm"><code>{`Wire salt-theme-gen tokens into this Tailwind CSS project:
+
+1. Generate theme and inject CSS variables into <head> first (see generic prompt)
+
+2. Update tailwind.config.ts:
+   darkMode: ['attribute', '[data-theme="dark"]'],
+   theme: {
+     extend: {
+       colors: {
+         primary:    'var(--color-primary)',
+         secondary:  'var(--color-secondary)',
+         background: 'var(--color-background)',
+         surface:    'var(--color-surface)',
+         text:       'var(--color-text)',
+         muted:      'var(--color-muted)',
+         border:     'var(--color-border)',
+         danger:     'var(--color-danger)',
+         success:    'var(--color-success)',
+         warning:    'var(--color-warning)',
+         info:       'var(--color-info)',
+       },
+       spacing: {
+         xs: 'var(--space-xs)', sm: 'var(--space-sm)',
+         md: 'var(--space-md)', lg: 'var(--space-lg)',
+         xl: 'var(--space-xl)', xxl: 'var(--space-xxl)',
+       },
+       borderRadius: {
+         sm: 'var(--radius-sm)', DEFAULT: 'var(--radius-md)',
+         lg: 'var(--radius-lg)', xl: 'var(--radius-xl)', pill: 'var(--radius-pill)',
+       },
+     },
+   },
+
+3. Replace arbitrary Tailwind values (bg-[#2563eb]) with token classes (bg-primary)
+4. Dark mode: data-theme="dark" toggles automatically — rarely need dark: variants`}</code></pre>
+          </div>
+
+          <!-- React Native -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <span class="prompt-fw">React Native</span>
+              <span class="prompt-tag">No CSS variables — JS objects</span>
+            </div>
+            <pre class="prompt-block prompt-block-sm"><code>{`Add salt-theme-gen to this React Native project:
+
+IMPORTANT: React Native does not support CSS custom properties.
+Use the GeneratedThemeMode JS object directly.
+
+1. Create src/theme/index.ts:
+   import { generateTheme } from 'salt-theme-gen';
+   export const theme = generateTheme({ preset: 'ocean' });
+
+2. Create src/theme/ThemeContext.tsx:
+   - Context with mode: GeneratedThemeMode, isDark: boolean, toggle()
+   - useColorScheme() from react-native for OS preference
+   - AsyncStorage for persistence (@react-native-async-storage/async-storage)
+   - Preference: 'light' | 'dark' | 'system'
+
+3. Wrap app root with ThemeProvider
+
+4. In screens/components:
+   const { mode } = useTheme();
+   const styles = useMemo(() => StyleSheet.create({
+     container: { backgroundColor: mode.colors.background },
+     text:       { color: mode.colors.text, fontSize: mode.fontSizes.md },
+     card:       { backgroundColor: mode.surfaceElevation.card,
+                   borderRadius: mode.radius.lg, padding: mode.spacing.xl },
+   }), [mode]);
+
+5. Always use useMemo([mode]) — avoids recreating StyleSheet on every render`}</code></pre>
+          </div>
+
+          <!-- Astro -->
+          <div class="prompt-card">
+            <div class="prompt-card-header">
+              <span class="prompt-fw">Astro</span>
+              <span class="prompt-tag">Fragment set:html + is:inline script</span>
+            </div>
+            <pre class="prompt-block prompt-block-sm"><code>{`Add salt-theme-gen to this Astro project:
+
+1. Create src/lib/theme.ts:
+   import { generateTheme } from 'salt-theme-gen';
+   export const theme = generateTheme({ preset: 'ocean' });
+   export const themeCSS = buildThemeCSS(theme); // build the CSS string
+
+2. In src/layouts/BaseLayout.astro <head>:
+   <Fragment set:html={\`<style>\${themeCSS}</style>\`} />
+
+   IMPORTANT: Use Fragment set:html, NOT a regular <style> tag.
+   A regular <style> gets scoped by Astro and loses :root[data-theme="dark"] selectors.
+
+3. Add a synchronous inline script for FOUC prevention:
+   <script is:inline>
+     var t = localStorage.getItem('theme');
+     if (t) document.documentElement.setAttribute('data-theme', t);
+   </script>
+
+4. For typed token access in React/Vue islands, generate theme server-side and
+   pass as props: <ReactIsland lightColors={theme.light.colors} />
+
+5. Use CSS variables (var(--color-primary)) in all .astro component <style> blocks`}</code></pre>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Claude Code section -->
+    <section class="ai-section ai-section-alt">
+      <div class="container">
+        <h2 class="section-heading">Using with Claude Code</h2>
+        <p class="section-desc">
+          Claude Code has full access to your file system and can run <code>npm install</code>.
+          These prompts work in both interactive chat and <code>/loop</code> mode.
+        </p>
+
+        <div class="claude-prompts">
+          <div class="claude-prompt-item">
+            <div class="claude-prompt-label">Add tokens to an existing project</div>
+            <pre class="prompt-block"><code>{`Install salt-theme-gen and add its design tokens to this project.
+Run: npm install salt-theme-gen
+Then wire up the theme following the pattern for this project's framework.
+Use the ocean preset. Replace all hardcoded color values with CSS variables.
+Do not touch any existing business logic — only replace style values.`}</code></pre>
+          </div>
+
+          <div class="claude-prompt-item">
+            <div class="claude-prompt-label">Change preset</div>
+            <pre class="prompt-block"><code>{`Change the salt-theme-gen preset from ocean to rose.
+Find the generateTheme() call and update the preset argument only.
+No other changes needed — token names stay the same, values update automatically.`}</code></pre>
+          </div>
+
+          <div class="claude-prompt-item">
+            <div class="claude-prompt-label">Audit hardcoded values</div>
+            <pre class="prompt-block"><code>{`Audit this project for hardcoded color values.
+Search for: hex colors (#xxx, #xxxxxx), rgb(), rgba(), hsl(), hsla()
+List every file and line where they appear.
+Then replace each one with the appropriate salt-theme-gen CSS variable.
+Map: brand/primary colors → var(--color-primary), backgrounds → var(--color-background), etc.`}</code></pre>
+          </div>
+
+          <div class="claude-prompt-item">
+            <div class="claude-prompt-label">Add dark mode toggle component</div>
+            <pre class="prompt-block"><code>{`Add a dark mode toggle button to this project that uses salt-theme-gen.
+The button should:
+- Toggle data-theme="dark" on document.documentElement
+- Persist preference in localStorage under key 'theme'
+- Show sun/moon icons for current state
+- Apply the toggle without a full page reload
+Assume CSS variables for light/dark are already injected via salt-theme-gen.`}</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cursor / Copilot rules -->
+    <section class="ai-section">
+      <div class="container">
+        <h2 class="section-heading">Cursor rules / Copilot instructions</h2>
+        <p class="section-desc">
+          Add these rules to <code>.cursorrules</code>, <code>.cursor/rules/*.mdc</code>,
+          or <code>.github/copilot-instructions.md</code> to enforce token usage project-wide.
+        </p>
+
+        <pre class="prompt-block"><code>{`# Design token rules — salt-theme-gen
+
+This project uses salt-theme-gen CSS custom properties for all design values.
+
+## REQUIRED in all files
+- Colors: var(--color-primary), var(--color-secondary), var(--color-background),
+  var(--color-surface), var(--color-text), var(--color-muted), var(--color-border),
+  var(--color-danger), var(--color-success), var(--color-warning), var(--color-info)
+- On-color: var(--color-on-primary), var(--color-on-danger), var(--color-on-success)
+- Spacing: var(--space-xs) var(--space-sm) var(--space-md) var(--space-lg) var(--space-xl) var(--space-xxl)
+- Radius: var(--radius-sm) var(--radius-md) var(--radius-lg) var(--radius-xl) var(--radius-pill)
+- Font size: var(--text-xs) var(--text-sm) var(--text-md) var(--text-lg) var(--text-xl) var(--text-xxl) var(--text-3xl)
+- Interaction states: var(--state-primary-hover), var(--state-primary-focused),
+  var(--state-primary-pressed), var(--state-primary-disabled)
+  (also -danger-, -success-, -warning-, -info- variants)
+
+## NEVER
+- Do not write hex values, rgb(), rgba(), hsl(), hsla() in any stylesheet or inline style
+- Do not write hardcoded pixel sizes for colors, spacing, or font sizes
+- Do not add new design values — use the existing token set
+
+## Dark mode
+- Toggle by setting data-theme="dark" on <html>
+- Never duplicate CSS rules for dark mode — use the CSS variable system
+- Token values automatically update between light/dark modes`}</code></pre>
+
+        <p class="cursor-note">
+          For <strong>Cursor</strong>, save as <code>.cursor/rules/design-tokens.mdc</code> with <code>alwaysApply: true</code> to enforce tokens in every file the AI touches.
+        </p>
+      </div>
+    </section>
+
+    <!-- llms.txt -->
+    <section class="ai-section ai-section-alt">
+      <div class="container">
+        <h2 class="section-heading">/llms.txt</h2>
+        <p class="section-desc">
+          A machine-readable spec at <a href="/llms.txt">/llms.txt</a> documents the full
+          <code>salt-theme-gen</code> API for AI assistants. Load it into your context
+          when working on complex integrations.
+        </p>
+
+        <div class="llms-usage">
+          <div class="llms-usage-item">
+            <div class="llms-usage-label">Load in Claude</div>
+            <pre class="prompt-block"><code>{`Read the file at https://learn.esalt.net/llms.txt for the complete salt-theme-gen API reference, then help me [task].`}</code></pre>
+          </div>
+          <div class="llms-usage-item">
+            <div class="llms-usage-label">Load in Cursor</div>
+            <pre class="prompt-block"><code>{`@https://learn.esalt.net/llms.txt Help me wire up salt-theme-gen in this project.`}</code></pre>
+          </div>
+          <div class="llms-usage-item">
+            <div class="llms-usage-label">Load in ChatGPT</div>
+            <pre class="prompt-block"><code>{`Here is the salt-theme-gen API reference: [paste contents of /llms.txt]
+Now help me [task].`}</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</BaseLayout>
+
+<style>
+  .ai-page {
+    padding-bottom: var(--space-xxl);
+  }
+
+  /* ── Hero ─────────────────────────────────────────── */
+  .ai-hero {
+    padding: var(--space-xxl) 0 var(--space-xl);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    margin-bottom: var(--space-xl);
+  }
+
+  .breadcrumb a { color: var(--color-muted); }
+  .breadcrumb a:hover { color: var(--color-primary); }
+
+  .ai-title {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-md);
+  }
+
+  .ai-sub {
+    font-size: var(--text-md);
+    color: var(--color-muted);
+    line-height: 1.7;
+    max-width: 640px;
+    margin-bottom: var(--space-lg);
+  }
+
+  .ai-meta-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+  }
+
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+    font-family: 'Fira Code', monospace;
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  .meta-pill:hover {
+    border-color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  .meta-sep { color: var(--color-border); }
+  .meta-text { font-size: var(--text-xs); color: var(--color-muted); }
+
+  /* ── Sections ─────────────────────────────────────── */
+  .ai-section {
+    padding: var(--space-xxl) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ai-section-alt {
+    background: var(--color-surface);
+  }
+
+  .section-heading {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+  }
+
+  .section-desc {
+    color: var(--color-muted);
+    line-height: 1.7;
+    max-width: 600px;
+    margin-bottom: var(--space-xl);
+  }
+
+  /* ── Token table ──────────────────────────────────── */
+  .token-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .token-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+
+  .token-table th {
+    text-align: left;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  .token-table td {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: top;
+    color: var(--color-text);
+    line-height: 1.6;
+  }
+
+  .token-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* ── Prompt blocks ────────────────────────────────── */
+  .prompt-block {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    font-size: var(--text-sm);
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .prompt-block code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    color: var(--color-text);
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  .prompt-block-sm {
+    font-size: var(--text-xs);
+  }
+
+  /* ── Framework prompts grid ───────────────────────── */
+  .prompts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+    gap: var(--space-lg);
+  }
+
+  .prompt-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .prompt-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .prompt-fw {
+    font-weight: 700;
+    font-size: var(--text-sm);
+    color: var(--color-primary);
+    font-family: 'Fira Code', monospace;
+  }
+
+  .prompt-tag {
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+  }
+
+  .prompt-card .prompt-block {
+    border: none;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  /* ── Claude prompts ───────────────────────────────── */
+  .claude-prompts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  .claude-prompt-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+  }
+
+  /* ── Cursor note ──────────────────────────────────── */
+  .cursor-note {
+    margin-top: var(--space-md);
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    line-height: 1.7;
+  }
+
+  /* ── llms.txt usage ───────────────────────────────── */
+  .llms-usage {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  .llms-usage-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+  }
+
+  @media (max-width: 700px) {
+    .prompts-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
