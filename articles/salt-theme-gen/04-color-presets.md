@@ -127,3 +127,9 @@ Use a **custom hex** when:
 In both cases, the output is the same shape — you switch between them without changing any code that consumes the tokens.
 
 Next: [Spacing, radius, and font scale presets — the personality of your UI](https://learn.esalt.net/salt-theme-gen/guide/05-design-scales/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 4 of 24*
+
+[← 03. WCAG Accessibility](./03-accessibility-built-in.md) &nbsp;·&nbsp; [05. Design Scale Presets →](./05-design-scales.md)

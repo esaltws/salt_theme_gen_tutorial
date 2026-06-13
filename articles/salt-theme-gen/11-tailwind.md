@@ -160,3 +160,9 @@ const colors = Object.fromEntries(
 This ensures the Tailwind color config always matches the actual token set regardless of `salt-theme-gen` version updates.
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/tailwind-css/](https://learn.esalt.net/salt-theme-gen/integrations/tailwind-css/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 11 of 24*
+
+[← 10. With Angular](./10-angular.md) &nbsp;·&nbsp; [12. With React Native →](./12-react-native.md)

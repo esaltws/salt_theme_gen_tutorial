@@ -236,3 +236,9 @@ export function SettingsScreen() {
 ```
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/react-native/](https://learn.esalt.net/salt-theme-gen/integrations/react-native/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 12 of 24*
+
+[← 11. With Tailwind CSS](./11-tailwind.md) &nbsp;·&nbsp; [13. With Expo →](./13-expo.md)

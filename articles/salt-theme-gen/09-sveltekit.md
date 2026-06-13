@@ -222,3 +222,9 @@ Initialize in root layout:
 Svelte's scoped styles work with CSS variables — `var()` resolves globally even inside scoped `<style>` blocks.
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/sveltekit/](https://learn.esalt.net/salt-theme-gen/integrations/sveltekit/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 9 of 24*
+
+[← 08. With Vue 3](./08-vue.md) &nbsp;·&nbsp; [10. With Angular →](./10-angular.md)

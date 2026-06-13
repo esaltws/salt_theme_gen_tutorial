@@ -205,3 +205,9 @@ eas build --platform all --profile preview
 ```
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/expo/](https://learn.esalt.net/salt-theme-gen/integrations/expo/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 13 of 24*
+
+[← 12. With React Native](./12-react-native.md) &nbsp;·&nbsp; [14. With Astro →](./14-astro.md)

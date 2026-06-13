@@ -169,3 +169,9 @@ function countChanges(diff: ReturnType<typeof diffTheme>): number {
 For visual regression testing (which components actually look different), pair `diffTheme` in CI to detect token changes, then run Chromatic or Percy to capture which stories changed visually.
 
 Full guide: [learn.esalt.net/salt-theme-gen/guide/09-comparing-themes/](https://learn.esalt.net/salt-theme-gen/guide/09-comparing-themes/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 20 of 24*
+
+[← 19. adjustTheme()](./19-adjust-theme.md) &nbsp;·&nbsp; [21. parseThemeJSON() →](./21-validation.md)

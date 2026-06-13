@@ -193,3 +193,9 @@ export type AppTheme = typeof theme; // GeneratedTheme
 ```
 
 Full guide: [learn.esalt.net/salt-theme-gen/guide/11-typescript/](https://learn.esalt.net/salt-theme-gen/guide/11-typescript/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 22 of 24*
+
+[← 21. parseThemeJSON()](./21-validation.md) &nbsp;·&nbsp; [23. With AI Assistants →](./23-ai-assistants.md)

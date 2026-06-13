@@ -211,3 +211,9 @@ export default {
 With this config, `bg-primary`, `text-muted`, `border-border` all resolve to the salt-theme-gen tokens. The `dark:` Tailwind variants work too — but since tokens switch automatically via CSS variables, you rarely need them.
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/next-js/](https://learn.esalt.net/salt-theme-gen/integrations/next-js/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 7 of 24*
+
+[← 06. With React](./06-react.md) &nbsp;·&nbsp; [08. With Vue 3 →](./08-vue.md)

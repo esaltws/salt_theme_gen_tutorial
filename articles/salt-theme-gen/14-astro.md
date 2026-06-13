@@ -189,3 +189,9 @@ export function ReactChart({ colors, spacing }: Props) {
 | `is:inline` safety | Synchronous preference restore with no bundler transforms |
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/astro/](https://learn.esalt.net/salt-theme-gen/integrations/astro/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 14 of 24*
+
+[← 13. With Expo](./13-expo.md) &nbsp;·&nbsp; [15. With Remix →](./15-remix.md)

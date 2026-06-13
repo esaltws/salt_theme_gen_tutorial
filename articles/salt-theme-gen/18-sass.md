@@ -203,3 +203,9 @@ Use **CSS variables** if: you want runtime dark mode switching, you work across 
 Use **Sass variables** if: your team works heavily in Sass and prefers `$` syntax, or you need Sass maps for utility class generation.
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/sass/](https://learn.esalt.net/salt-theme-gen/integrations/sass/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 18 of 24*
+
+[← 17. With Storybook](./17-storybook.md) &nbsp;·&nbsp; [19. adjustTheme() →](./19-adjust-theme.md)

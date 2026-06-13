@@ -206,3 +206,9 @@ constructor() {
 ```
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/angular/](https://learn.esalt.net/salt-theme-gen/integrations/angular/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 10 of 24*
+
+[← 09. With SvelteKit](./09-sveltekit.md) &nbsp;·&nbsp; [11. With Tailwind CSS →](./11-tailwind.md)

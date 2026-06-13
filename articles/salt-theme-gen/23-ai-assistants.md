@@ -138,3 +138,9 @@ Without explicit guidance, AI assistants tend to:
 The prompts above give the assistant enough context to avoid all five.
 
 Full AI resources: [learn.esalt.net/salt-theme-gen/ai/](https://learn.esalt.net/salt-theme-gen/ai/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 23 of 24*
+
+[← 22. TypeScript](./22-typescript.md) &nbsp;·&nbsp; [24. Flutter Bridge →](./24-flutter-bridge.md)

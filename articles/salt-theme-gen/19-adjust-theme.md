@@ -168,3 +168,9 @@ const diff     = diffTheme(base, adjusted);
 `diffTheme()` returns only the changed keys — useful for verifying that an adjustment touched exactly what you intended.
 
 Full guide: [learn.esalt.net/salt-theme-gen/guide/08-adjusting-themes/](https://learn.esalt.net/salt-theme-gen/guide/08-adjusting-themes/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 19 of 24*
+
+[← 18. With Sass/SCSS](./18-sass.md) &nbsp;·&nbsp; [20. diffTheme() →](./20-diff-theme.md)

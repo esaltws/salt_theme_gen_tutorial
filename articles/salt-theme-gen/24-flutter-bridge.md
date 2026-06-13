@@ -263,3 +263,9 @@ const theme = generateTheme(config);
 ```
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/flutter/](https://learn.esalt.net/salt-theme-gen/integrations/flutter/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 24 of 24*
+
+[← 23. With AI Assistants](./23-ai-assistants.md)

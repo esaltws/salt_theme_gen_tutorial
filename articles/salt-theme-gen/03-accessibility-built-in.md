@@ -152,3 +152,9 @@ Accessibility in design tokens is a solved problem. Running 18 WCAG checks on ev
 - Dark mode is verified separately, not assumed to be fine
 
 Next in the series: [20 color presets — which one fits your project](https://learn.esalt.net/salt-theme-gen/guide/04-color-presets/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 3 of 24*
+
+[← 02. Dark Mode in 5 Minutes](./02-dark-mode-in-5-minutes.md) &nbsp;·&nbsp; [04. Color Presets →](./04-color-presets.md)

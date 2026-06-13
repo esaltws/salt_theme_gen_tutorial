@@ -225,3 +225,9 @@ In `index.html`, add a synchronous script before any styles:
 This runs before CSS loads and prevents the flash of wrong theme on hard refresh.
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/react/](https://learn.esalt.net/salt-theme-gen/integrations/react/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 6 of 24*
+
+[← 05. Design Scale Presets](./05-design-scales.md) &nbsp;·&nbsp; [07. With Next.js →](./07-nextjs.md)

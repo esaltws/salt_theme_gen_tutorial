@@ -150,3 +150,9 @@ npm install salt-theme-gen
 ```
 
 Full documentation: [learn.esalt.net/salt-theme-gen](https://learn.esalt.net/salt-theme-gen/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 1 of 24*
+
+[02. Dark Mode in 5 Minutes →](./02-dark-mode-in-5-minutes.md)

@@ -232,3 +232,9 @@ export function Button({ children }) {
 | vanilla-extract | Zero | Class swap | Excellent | SSR, performance |
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/css-in-js/](https://learn.esalt.net/salt-theme-gen/integrations/css-in-js/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 16 of 24*
+
+[← 15. With Remix](./15-remix.md) &nbsp;·&nbsp; [17. With Storybook →](./17-storybook.md)

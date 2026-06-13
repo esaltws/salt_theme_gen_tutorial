@@ -187,3 +187,9 @@ export function Card({ title, body }: { title: string; body: string }) {
 Use the cookie approach in Remix because you can. Use the localStorage + inline script approach in SPAs because cookies require a server.
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/remix/](https://learn.esalt.net/salt-theme-gen/integrations/remix/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 15 of 24*
+
+[← 14. With Astro](./14-astro.md) &nbsp;·&nbsp; [16. With CSS-in-JS →](./16-css-in-js.md)

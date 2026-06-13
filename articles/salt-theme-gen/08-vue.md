@@ -221,3 +221,9 @@ export const useThemeStore = defineStore('theme', () => {
 The `provide`/`inject` pattern above avoids Pinia as a dependency for theme state alone. Use Pinia if you already have it; skip it if you don't.
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/vue/](https://learn.esalt.net/salt-theme-gen/integrations/vue/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 8 of 24*
+
+[← 07. With Next.js](./07-nextjs.md) &nbsp;·&nbsp; [09. With SvelteKit →](./09-sveltekit.md)

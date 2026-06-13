@@ -163,3 +163,9 @@ if (result.success) {
 The type assertion approach is common but dangerous at system boundaries. `parseThemeJSON()` is the correct tool when you don't control the data source.
 
 Full guide: [learn.esalt.net/salt-theme-gen/guide/10-validation/](https://learn.esalt.net/salt-theme-gen/guide/10-validation/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 21 of 24*
+
+[← 20. diffTheme()](./20-diff-theme.md) &nbsp;·&nbsp; [22. TypeScript →](./22-typescript.md)

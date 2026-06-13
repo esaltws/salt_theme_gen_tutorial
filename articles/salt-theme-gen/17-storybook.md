@@ -237,3 +237,9 @@ export const PrimaryDark: Story = {
 ```
 
 Full guide: [learn.esalt.net/salt-theme-gen/integrations/storybook/](https://learn.esalt.net/salt-theme-gen/integrations/storybook/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 17 of 24*
+
+[← 16. With CSS-in-JS](./16-css-in-js.md) &nbsp;·&nbsp; [18. With Sass/SCSS →](./18-sass.md)

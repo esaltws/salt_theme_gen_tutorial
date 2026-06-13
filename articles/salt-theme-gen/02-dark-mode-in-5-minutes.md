@@ -188,3 +188,9 @@ function resetToSystem() {
 Total time: under 5 minutes. Total JavaScript for the dark mode toggle: 3 lines.
 
 Next article: [WCAG accessibility checks — what salt-theme-gen verifies automatically](https://learn.esalt.net/salt-theme-gen/guide/06-accessibility/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 2 of 24*
+
+[← 01. Introducing salt-theme-gen](./01-introducing-salt-theme-gen.md) &nbsp;·&nbsp; [03. WCAG Accessibility →](./03-accessibility-built-in.md)

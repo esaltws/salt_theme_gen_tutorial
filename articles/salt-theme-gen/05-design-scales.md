@@ -121,3 +121,9 @@ const tenantTheme = generateTheme({
 Each tenant gets a consistent, cohesive scale — different values, same token names.
 
 Next: [salt-theme-gen with React — ThemeContext and CSS injection](https://learn.esalt.net/salt-theme-gen/integrations/react/)
+
+---
+
+*Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 5 of 24*
+
+[← 04. Color Presets](./04-color-presets.md) &nbsp;·&nbsp; [06. With React →](./06-react.md)
