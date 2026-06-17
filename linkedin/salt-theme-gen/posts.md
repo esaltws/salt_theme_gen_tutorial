@@ -24,7 +24,7 @@ That's it. The rest is CSS variables.
 20 built-in color presets. Pass any hex color if you already have a brand. Works in React, Next.js, Vue, Angular, Svelte, React Native, Flutter — any platform that can receive a JavaScript object or a CSS file.
 
 Full write-up with the complete pattern:
-[ARTICLE LINK]
+https://dev.to/hasansarwer/introducing-salt-theme-gen-generate-a-complete-design-system-from-one-color-2a9j
 
 Part 1 of 24 in the salt-theme-gen series.
 
