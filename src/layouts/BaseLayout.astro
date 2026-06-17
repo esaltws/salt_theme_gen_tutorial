@@ -7,12 +7,18 @@ import Footer from '../components/Footer.astro';
 interface Props {
   title: string;
   description?: string;
+  image?: string;
 }
 
 const {
   title,
-  description = 'Learn to build production-ready design systems with esalt packages.',
+  description = 'salt-theme-gen generates a complete light/dark design system from one function call — 21 colors, spacing, radius, font sizes, and WCAG contrast checks. Works with React, Vue, Angular, Next.js, and more.',
+  image = '/og-image.png',
 } = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, 'https://learn.esalt.net');
+const ogTitle = `${title} — learn.esalt.net`;
+const ogImage = new URL(image, 'https://learn.esalt.net');
 ---
 
 <!doctype html>
@@ -22,8 +28,24 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={canonicalURL} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title} — learn.esalt.net</title>
+
+    <!-- Open Graph -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:url"         content={canonicalURL} />
+    <meta property="og:title"       content={ogTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image"       content={ogImage} />
+    <meta property="og:site_name"   content="learn.esalt.net" />
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:url"         content={canonicalURL} />
+    <meta name="twitter:title"       content={ogTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image"       content={ogImage} />
 
     <!-- salt-theme-gen Ocean theme — this site is the demo -->
     <Fragment set:html={`<style>${themeCSS}</style>`} />

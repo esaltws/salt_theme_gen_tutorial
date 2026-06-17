@@ -1,5 +1,5 @@
 ---
-title: Dark Mode in 5 Minutes with salt-theme-gen (No Flash, No JavaScript Required)
+title: Dark Mode in 5 Minutes with salt-theme-gen (No Flash, Zero Extra Dependencies)
 published: false
 description: Generate light and dark token sets from one call, inject as CSS variables, toggle with data-theme. Zero flash of wrong theme on load.
 tags: css, darkmode, webdev, javascript
@@ -187,7 +187,7 @@ function resetToSystem() {
 
 Total time: under 5 minutes. Total JavaScript for the dark mode toggle: 3 lines.
 
-Next article: [WCAG accessibility checks — what salt-theme-gen verifies automatically](https://dev.to/hasansarwer/introducing-salt-theme-gen-generate-a-complete-design-system-from-one-color-2a9j)
+Previous article: [Introducing salt-theme-gen — Generate a Complete Design System from One Color](https://dev.to/hasansarwer/introducing-salt-theme-gen-generate-a-complete-design-system-from-one-color-2a9j)
 
 ---
 
