@@ -19,6 +19,34 @@ const {
 const canonicalURL = new URL(Astro.url.pathname, 'https://learn.esalt.net');
 const ogTitle = `${title} — learn.esalt.net`;
 const ogImage = new URL(image, 'https://learn.esalt.net');
+
+const pageSchema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': 'https://learn.esalt.net/#website',
+      'url': 'https://learn.esalt.net',
+      'name': 'learn.esalt.net',
+      'description': 'The official learning hub for esalt open-source packages.',
+      'publisher': {
+        '@type': 'Organization',
+        '@id': 'https://esalt.net/#organization',
+        'name': 'esalt web services',
+        'url': 'https://esalt.net',
+      },
+    },
+    {
+      '@type': 'WebPage',
+      '@id': `${canonicalURL}#webpage`,
+      'url': String(canonicalURL),
+      'name': ogTitle,
+      'description': description,
+      'isPartOf': { '@id': 'https://learn.esalt.net/#website' },
+      'publisher': { '@id': 'https://esalt.net/#organization' },
+    },
+  ],
+});
 ---
 
 <!doctype html>
@@ -46,6 +74,12 @@ const ogImage = new URL(image, 'https://learn.esalt.net');
     <meta name="twitter:title"       content={ogTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image"       content={ogImage} />
+
+    <!-- JSON-LD: WebSite + WebPage -->
+    <Fragment set:html={`<script type="application/ld+json">${pageSchema}</script>`} />
+
+    <!-- Per-page schema slot (SoftwareApplication, BreadcrumbList, etc.) -->
+    <slot name="head" />
 
     <!-- salt-theme-gen Ocean theme — this site is the demo -->
     <Fragment set:html={`<style>${themeCSS}</style>`} />

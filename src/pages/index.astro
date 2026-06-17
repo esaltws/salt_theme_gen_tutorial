@@ -1,11 +1,41 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+
+const softwareSchema = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  'name': 'salt-theme-gen',
+  'applicationCategory': 'DeveloperApplication',
+  'operatingSystem': 'Any',
+  'description': 'Generate a complete light/dark design system from one function call. 21 semantic colors, 32 interaction states, spacing, radius, font sizes, and WCAG contrast checks.',
+  'softwareVersion': '1.2.2',
+  'releaseNotes': 'https://www.npmjs.com/package/salt-theme-gen',
+  'downloadUrl': 'https://www.npmjs.com/package/salt-theme-gen',
+  'installUrl': 'https://www.npmjs.com/package/salt-theme-gen',
+  'license': 'https://opensource.org/licenses/MIT',
+  'programmingLanguage': 'TypeScript',
+  'url': 'https://learn.esalt.net/salt-theme-gen/',
+  'author': {
+    '@type': 'Organization',
+    '@id': 'https://esalt.net/#organization',
+    'name': 'esalt web services',
+    'url': 'https://esalt.net',
+  },
+  'offers': {
+    '@type': 'Offer',
+    'price': '0',
+    'priceCurrency': 'USD',
+  },
+});
 ---
 
 <BaseLayout
   title="salt-theme-gen — Design Token Generator for React, Vue, Angular & More"
   description="Generate a complete light/dark design system from one function call. 21 semantic colors, WCAG contrast checks, and CSS variables for React, Next.js, Vue, Angular, Svelte, and more."
 >
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={softwareSchema} />
+  </Fragment>
   <!-- Hero -->
   <section class="hero">
     <div class="container hero-inner">
