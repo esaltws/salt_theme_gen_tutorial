@@ -383,3 +383,47 @@ const allAA = Object.values(accessibility).every(c => c.aa);
 https://learn.esalt.net/salt-theme-gen/
 Guide: https://learn.esalt.net/salt-theme-gen/guide/01-introduction/
 Integrations: https://learn.esalt.net/salt-theme-gen/integrations/react/
+Full content: https://learn.esalt.net/llms-full.txt
+
+## PAGES
+
+> Home
+https://learn.esalt.net/
+
+> Package overview
+https://learn.esalt.net/salt-theme-gen/
+
+> Guide chapters
+https://learn.esalt.net/salt-theme-gen/guide/01-introduction/
+https://learn.esalt.net/salt-theme-gen/guide/02-quick-start/
+https://learn.esalt.net/salt-theme-gen/guide/03-understanding-the-output/
+https://learn.esalt.net/salt-theme-gen/guide/04-color-presets/
+https://learn.esalt.net/salt-theme-gen/guide/05-design-scales/
+https://learn.esalt.net/salt-theme-gen/guide/06-accessibility/
+https://learn.esalt.net/salt-theme-gen/guide/07-color-harmony/
+https://learn.esalt.net/salt-theme-gen/guide/08-adjusting-themes/
+https://learn.esalt.net/salt-theme-gen/guide/09-comparing-themes/
+https://learn.esalt.net/salt-theme-gen/guide/10-validation/
+https://learn.esalt.net/salt-theme-gen/guide/11-typescript/
+
+> Integration guides
+https://learn.esalt.net/salt-theme-gen/integrations/react/
+https://learn.esalt.net/salt-theme-gen/integrations/next-js/
+https://learn.esalt.net/salt-theme-gen/integrations/vue/
+https://learn.esalt.net/salt-theme-gen/integrations/nuxt/
+https://learn.esalt.net/salt-theme-gen/integrations/astro/
+https://learn.esalt.net/salt-theme-gen/integrations/sveltekit/
+https://learn.esalt.net/salt-theme-gen/integrations/remix/
+https://learn.esalt.net/salt-theme-gen/integrations/angular/
+https://learn.esalt.net/salt-theme-gen/integrations/vanilla-js/
+https://learn.esalt.net/salt-theme-gen/integrations/tailwind-css/
+https://learn.esalt.net/salt-theme-gen/integrations/react-native/
+https://learn.esalt.net/salt-theme-gen/integrations/expo/
+https://learn.esalt.net/salt-theme-gen/integrations/flutter/
+https://learn.esalt.net/salt-theme-gen/integrations/storybook/
+https://learn.esalt.net/salt-theme-gen/integrations/css-in-js/
+https://learn.esalt.net/salt-theme-gen/integrations/sass/
+https://learn.esalt.net/salt-theme-gen/integrations/no-code/
+
+> AI resources
+https://learn.esalt.net/salt-theme-gen/ai/
