@@ -149,6 +149,8 @@ Install and follow along:
 npm install salt-theme-gen
 ```
 
+Next article: [Dark Mode in 5 Minutes with salt-theme-gen (No Flash, Zero Extra Dependencies)](https://dev.to/hasansarwer/dark-mode-in-5-minutes-with-salt-theme-gen-no-flash-zero-extra-dependencies-2ohb)
+
 Full documentation: [learn.esalt.net/salt-theme-gen](https://learn.esalt.net/salt-theme-gen/)
 
 ---

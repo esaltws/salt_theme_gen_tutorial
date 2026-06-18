@@ -189,6 +189,8 @@ Total time: under 5 minutes. Total JavaScript for the dark mode toggle: 3 lines.
 
 Previous article: [Introducing salt-theme-gen — Generate a Complete Design System from One Color](https://dev.to/hasansarwer/introducing-salt-theme-gen-generate-a-complete-design-system-from-one-color-2a9j)
 
+Full documentation: [learn.esalt.net/salt-theme-gen](https://learn.esalt.net/salt-theme-gen/)
+
 ---
 
 *Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 2 of 24*

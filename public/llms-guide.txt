@@ -1,0 +1,3643 @@
+## GUIDE
+
+### Chapter 01 — Introduction
+Source: https://learn.esalt.net/salt-theme-gen/guide/01-introduction/
+
+## The problem every developer knows
+
+You're three months into a product. The primary button is `#3B82F6`. You use it in 40 places — buttons, links, focus rings, badges, icons. Then the designer sends a Figma update. "We're going warmer. More trust-building."
+
+You spend a day grepping. You replace `#3B82F6` with `#2563EB`. You miss three components. QA finds them. You fix them. Two weeks later, the designer asks why the focus ring is the wrong shade.
+
+This is the color problem in its mildest form.
+
+The darker version: you add dark mode. You invert the colors by eye, test on your monitor, ship it. On someone else's screen it looks washed out. The text on the primary button passes contrast checking in light mode but fails in dark. You find out six months later from a user who is visually impaired.
+
+**The real problem is not the colors themselves. It is the absence of a system.**
+
+---
+
+## Why the usual fixes only partially work
+
+Developers reach for a few familiar tools, each with real tradeoffs:
+
+**CSS variables** — great for centralizing values, but you still have to author 40+ variables by hand, figure out dark mode values yourself, and derive state colors (hover, pressed, disabled) manually. No math, no structure, no accessibility checks.
+
+**Tailwind's color palette** — solves consistency within Tailwind, but it is a fixed palette, not your brand. Mapping semantic meaning (`primary`, `danger`, `surface`) to Tailwind classes leaks implementation details everywhere.
+
+**Design token tools** — powerful, but often require a designer-developer pipeline, external tools, and significant setup. Overkill for a solo developer or small team trying to ship a product.
+
+**Picking colors from Figma** — the designer's job, not yours. And it breaks the moment the designer is unavailable, the team changes, or the brand evolves.
+
+There was no middle ground: a zero-dependency, code-first way to produce a complete, semantically correct, accessible design system from a single decision.
+
+That is what `salt-theme-gen` is.
+
+---
+
+## What is OKLCH?
+
+Before meeting the library, it helps to understand the color science underneath it — briefly and practically.
+
+Most developers think in HEX (`#3B82F6`) or HSL (`hsl(217, 91%, 60%)`). These formats are convenient to write but have a critical flaw: **they are not perceptually uniform**.
+
+What does that mean? Take HSL. Two colors can have the same `L` (lightness) value but look wildly different in brightness to the human eye. A yellow at `hsl(60, 100%, 50%)` looks dramatically brighter than a blue at `hsl(240, 100%, 50%)` — even though both have `L = 50%`.
+
+This matters enormously for dark mode. If you build dark mode by adjusting HSL lightness values, you are guessing. The math looks right on paper. The result looks wrong on screen.
+
+**OKLCH solves this by being perceptually uniform.** An OKLCH color with `L = 0.6` always looks "medium bright" to the human eye, regardless of its hue. When you darken or lighten a color in OKLCH, the perceived change is consistent and predictable.
+
+OKLCH has three channels:
+- **L** — lightness (0 = black, 1 = white) — perceptually accurate
+- **C** — chroma (colorfulness/saturation) — 0 means grey
+- **H** — hue (0–360°, same wheel as HSL)
+
+You do not need to use OKLCH directly. `salt-theme-gen` uses it internally to do all the math — generating harmonious secondary colors, computing correct dark mode values, checking contrast ratios. You give it a color or a preset name. It gives you tokens.
+
+---
+
+## Meet salt-theme-gen
+
+One function. One input. A complete design system.
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({
+  preset: 'ocean',      // or any hex color: primary: '#0E9D8E'
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+```
+
+That is it. `theme` now contains everything your app needs to be consistently styled, light/dark, and accessible.
+
+---
+
+## What you get from one function call
+
+The output is a `GeneratedTheme` object with `light` and `dark` modes. Each mode contains:
+
+### Semantic colors — 21 tokens
+
+Your brand colors and their relationships, all mathematically derived:
+
+| Token | Purpose |
+| ----- | ------- |
+| `primary` | Main brand action color |
+| `secondary` | Complementary accent |
+| `tertiary` | Supporting accent |
+| `quaternary` | Harmony accent (analogous by default) |
+| `background` | Page/screen background |
+| `surface` | Card, sheet, input background |
+| `text` | Primary readable text |
+| `muted` | Subdued text, placeholders, icons |
+| `border` | Lines, dividers, outlines |
+| `danger` | Destructive actions, errors |
+| `success` | Confirmation, positive state |
+| `warning` | Caution, non-critical alerts |
+| `info` | Informational, neutral alerts |
+| `onPrimary` | Text/icon on `primary` background |
+| `onSecondary` | Text/icon on `secondary` background |
+| `onTertiary` | Text/icon on `tertiary` background |
+| `onQuaternary` | Text/icon on `quaternary` background |
+| `onDanger` | Text/icon on `danger` background |
+| `onSuccess` | Text/icon on `success` background |
+| `onWarning` | Text/icon on `warning` background |
+| `onInfo` | Text/icon on `info` background |
+
+The `on*` colors are the most underrated feature. They tell you what to render *on top of* each intent color — and they are WCAG-checked automatically.
+
+```ts
+// You never have to guess again
+<Button
+  style={{
+    backgroundColor: theme.light.colors.primary,
+    color: theme.light.colors.onPrimary, // always readable
+  }}
+/>
+```
+
+### State colors — 32 tokens
+
+Every interactive intent gets four states, all derived from the same algorithm:
+
+```
+primary   → hover, pressed, focused, disabled
+secondary → hover, pressed, focused, disabled
+tertiary  → hover, pressed, focused, disabled
+quaternary → hover, pressed, focused, disabled
+danger    → hover, pressed, focused, disabled
+success   → hover, pressed, focused, disabled
+warning   → hover, pressed, focused, disabled
+info      → hover, pressed, focused, disabled
+```
+
+No more each developer inventing their own hover rule. No more `opacity: 0.8` on everything. The 32 state colors are consistent and visually correct.
+
+### Surface elevation — 4 tokens
+
+```ts
+theme.light.surfaceElevation.card     // cards, sheets
+theme.light.surfaceElevation.elevated // elevated cards, bottom sheets
+theme.light.surfaceElevation.modal    // modals, dialogs
+theme.light.surfaceElevation.popover  // tooltips, dropdowns, menus
+```
+
+Elevation layers are subtle, mathematically stepped color shifts. Your UI has visual depth without you handpicking every shade.
+
+### Design scales
+
+```ts
+// Spacing — xs, sm, md, lg, xl, xxl (in px)
+theme.light.spacing.md  // 12
+
+// Radius — none, sm, md, lg, xl, xxl, pill
+theme.light.radius.lg   // 14
+
+// Font sizes — xs, sm, md, lg, xl, xxl, 3xl
+theme.light.fontSizes.lg  // 18
+```
+
+Change `spacing: 'compact'` and your entire app tightens up. Change `radius: 'pill'` and every border radius becomes rounded. One decision, global effect.
+
+### Accessibility report
+
+Every generated theme includes an `AccessibilityReport` with 18 contrast ratio checks:
+
+```ts
+theme.light.accessibility.primaryOnBackground
+// → { ratio: 5.2, level: 'AA' }
+
+theme.light.accessibility.textOnBackground
+// → { ratio: 14.1, level: 'AAA' }
+```
+
+If any color fails WCAG AA, the library auto-corrects it and warns you. You ship accessible colors by default, not by accident.
+
+---
+
+## The 20 presets
+
+You do not have to start from a custom color. `salt-theme-gen` ships 20 nature-inspired presets, each tuned to a specific OKLCH hue and chroma:
+
+`peacock` · `ocean` · `forest` · `sunset` · `cherry-blossom` · `arctic` · `desert` · `lavender` · `emerald` · `coral-reef` · `midnight` · `autumn` · `rose-gold` · `sapphire` · `mint` · `volcano` · `twilight` · `honey` · `storm` · `aurora`
+
+```ts
+// Use a preset by name
+generateTheme({ preset: 'aurora' })
+
+// Or use any hex color
+generateTheme({ primary: '#E11D48' })
+```
+
+Chapter 4 covers presets in depth, including how to browse and compare them.
+
+---
+
+## What this guide covers
+
+This guide has 11 chapters. You can read them in order or jump directly to what you need:
+
+| # | Chapter | What you learn |
+| - | ------- | -------------- |
+| **1** | **Introduction** (you are here) | What, why, and the full picture |
+| **2** | Quick Start | Install and generate your first theme in 5 minutes |
+| **3** | Understanding the Output | Explore the full `GeneratedTheme` object |
+| **4** | Color Presets | All 20 presets and custom hex input |
+| **5** | Design Scale Presets | Spacing, radius, and font size scales |
+| **6** | Accessibility Built-in | The `AccessibilityReport` and WCAG compliance |
+| **7** | ColorHarmony & Accents | Quaternary color and harmony strategies |
+| **8** | Adjusting Themes | `adjustTheme()` for post-generation tweaks |
+| **9** | Comparing Themes | `diffTheme()` for design audits |
+| **10** | Validation | `parseThemeJSON()` for storage and APIs |
+| **11** | TypeScript Integration | Full type reference, strict mode |
+
+After the guide, the **Integrations** section shows you how to apply your theme in every major framework — React, Next.js, Vue, Angular, Flutter, Tailwind CSS, and more.
+
+---
+
+## Prerequisites
+
+- Basic JavaScript or TypeScript — you do not need to be an expert
+- A package manager (`npm`, `yarn`, or `pnpm`)
+- No color science knowledge required — the math is handled for you
+
+---
+
+## Ready to build your first theme?
+
+The next chapter takes you from installation to a working theme output in under 5 minutes.
+
+Tip: This site is built with `salt-theme-gen` using the Ocean preset. Every color you see — the primary blue, the surface cards, the muted text — is a generated token. The site is the demo.
+
+---
+
+### Chapter 02 — Quick Start
+Source: https://learn.esalt.net/salt-theme-gen/guide/02-quick-start/
+
+## Install in 30 seconds
+
+`salt-theme-gen` is a zero-dependency npm package. No peer dependencies, no build plugins, no config files.
+
+```bash
+npm install salt-theme-gen
+```
+
+```bash
+# or
+yarn add salt-theme-gen
+pnpm add salt-theme-gen
+```
+
+That's the entire setup. No additional steps.
+
+---
+
+## Your first theme
+
+Open any file in your project — a component, a script, anything. Copy this:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({
+  preset: 'ocean',
+  spacing: 'default',
+  radius: 'default',
+  fontSize: 'default',
+});
+
+console.log(theme.light.colors.primary);
+// → oklch(0.55 0.18 220)
+
+console.log(theme.light.colors.onPrimary);
+// → oklch(0.99 0.005 220)
+
+console.log(theme.light.accessibility.primaryOnBackground);
+// → { ratio: 5.2, level: 'AA' }
+```
+
+Run it. You just generated a complete design system from one function call.
+
+---
+
+## What you got
+
+The `theme` object has two keys: `light` and `dark`. Each is a `GeneratedThemeMode` with the same shape.
+
+```ts
+theme.light.colors          // 21 semantic color tokens
+theme.light.states          // 32 state colors (hover, pressed, focused, disabled)
+theme.light.surfaceElevation // 4 elevation layers
+theme.light.spacing         // 6 spacing steps
+theme.light.radius          // 7 border radius steps
+theme.light.fontSizes       // 7 font size steps
+theme.light.accessibility   // 18 WCAG contrast checks
+```
+
+Dark mode is not an inversion or a guess. It is computed from the same OKLCH math as the light mode — different lightness values, same chroma, same hue relationships. The result is perceptually balanced, not manually tweaked.
+
+```ts
+theme.dark.colors.primary
+// → oklch(0.65 0.18 220)  — brighter for dark backgrounds
+
+theme.dark.colors.background
+// → oklch(0.12 0.01 220)  — deep, slightly tinted dark
+```
+
+---
+
+## Exploring your first colors
+
+Let's look at the full color set for the Ocean preset in light mode:
+
+```ts
+const { colors } = theme.light;
+
+// Brand colors
+colors.primary      // Your main action color
+colors.secondary    // Complementary accent
+colors.tertiary     // Supporting accent
+colors.quaternary   // Harmony accent
+
+// Surfaces
+colors.background   // Page background
+colors.surface      // Card, input, sheet background
+
+// Text
+colors.text         // Primary readable text
+colors.muted        // Placeholders, icons, secondary text
+
+// Structural
+colors.border       // Lines, dividers, outlines
+
+// Intents
+colors.danger       // Errors, destructive actions
+colors.success      // Confirmations, positive feedback
+colors.warning      // Caution, non-critical alerts
+colors.info         // Informational, neutral messages
+
+// Foreground pairs (the most underrated feature)
+colors.onPrimary    // Text/icon on primary backgrounds
+colors.onSecondary  // Text/icon on secondary backgrounds
+colors.onTertiary   // Text/icon on tertiary backgrounds
+colors.onQuaternary // Text/icon on quaternary backgrounds
+colors.onDanger     // Text/icon on danger backgrounds
+colors.onSuccess    // Text/icon on success backgrounds
+colors.onWarning    // Text/icon on warning backgrounds
+colors.onInfo       // Text/icon on info backgrounds
+```
+
+The `on*` colors are always WCAG AA compliant with their paired background. You never calculate contrast again.
+
+---
+
+## Exploring state colors
+
+Every interactive intent has four states:
+
+```ts
+const { states } = theme.light;
+
+states.primary.hover     // When the cursor enters
+states.primary.pressed   // While the button is held down
+states.primary.focused   // When focused via keyboard
+states.primary.disabled  // When the element is inactive
+```
+
+All eight intents (`primary`, `secondary`, `tertiary`, `quaternary`, `danger`, `success`, `warning`, `info`) have the same four states — 32 total. They are mathematically derived from the base color. Hover is slightly lighter, pressed is slightly darker, disabled is desaturated.
+
+---
+
+## Applying tokens to real HTML
+
+Here is a complete button using the theme:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({ preset: 'ocean' });
+const { colors, states, radius, spacing } = theme.light;
+
+const buttonStyle = {
+  backgroundColor: colors.primary,
+  color: colors.onPrimary,
+  borderRadius: `${radius.md}px`,
+  padding: `${spacing.sm}px ${spacing.lg}px`,
+  border: 'none',
+  cursor: 'pointer',
+};
+
+const buttonHoverStyle = {
+  backgroundColor: states.primary.hover,
+};
+```
+
+No guess on `onPrimary`. No inventing a hover color. No manual contrast check. The math already ran.
+
+---
+
+## Using CSS variables (recommended for web)
+
+For most web projects, you do not apply tokens inline. You generate CSS custom properties once and reference them everywhere.
+
+**Step 1 — Generate the variables:**
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+const theme = generateTheme({ preset: 'ocean' });
+
+function modeToCSS(mode: GeneratedThemeMode): string {
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(mode.colors))
+    lines.push(`  --color-${k.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${v};`);
+  for (const [k, v] of Object.entries(mode.spacing))
+    lines.push(`  --space-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.radius))
+    lines.push(`  --radius-${k}: ${v}px;`);
+  for (const [k, v] of Object.entries(mode.fontSizes))
+    lines.push(`  --text-${k}: ${v}px;`);
+  return lines.join('\n');
+}
+
+const css = `
+:root { ${modeToCSS(theme.light)} }
+@media (prefers-color-scheme: dark) { :root { ${modeToCSS(theme.dark)} } }
+`.trim();
+```
+
+**Step 2 — Inject it once** (in your `<head>`, root layout, or main CSS file):
+
+```html
+<style>
+  :root {
+    --color-primary: oklch(0.55 0.18 220);
+    --color-on-primary: oklch(0.99 0.005 220);
+    --color-background: oklch(0.99 0.005 220);
+    /* ... all tokens ... */
+  }
+</style>
+```
+
+**Step 3 — Use variables everywhere:**
+
+```css
+.button-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.button-primary:hover {
+  background: var(--state-primary-hover);
+}
+```
+
+The variables approach decouples your token generation from your component code. Change the preset, regenerate, done. Your component CSS never changes.
+
+Note: Framework integrations: The CSS variable pattern above is the same one used in the React, Next.js, Vue, and Astro integrations. The Integrations section after Chapter 11 shows each framework's exact setup — typically 20 lines in the root layout.
+
+---
+
+## Try a different preset
+
+Changing your entire design system takes one word:
+
+```ts
+// Ocean (blue)
+generateTheme({ preset: 'ocean' })
+
+// Forest (green)
+generateTheme({ preset: 'forest' })
+
+// Sunset (warm orange-red)
+generateTheme({ preset: 'sunset' })
+
+// Aurora (teal-purple)
+generateTheme({ preset: 'aurora' })
+```
+
+Or skip presets entirely and use your brand color:
+
+```ts
+generateTheme({ primary: '#E11D48' })  // Your exact hex
+```
+
+The library converts your hex to OKLCH, derives all other colors from it, and runs the same math. Your brand color becomes a full system.
+
+---
+
+## Try a different scale
+
+Scales are independent of color. You can mix and match:
+
+```ts
+// Tight layout, rounded, slightly larger text
+generateTheme({
+  preset: 'ocean',
+  spacing: 'compact',
+  radius: 'pill',
+  fontSize: 'large',
+})
+
+// Spacious layout, sharp corners, small text
+generateTheme({
+  preset: 'ocean',
+  spacing: 'spacious',
+  radius: 'none',
+  fontSize: 'small',
+})
+```
+
+Available options:
+- `spacing`: `'compact'` | `'default'` | `'spacious'`
+- `radius`: `'none'` | `'sm'` | `'default'` | `'lg'` | `'pill'`
+- `fontSize`: `'small'` | `'default'` | `'large'`
+
+Chapter 5 covers the exact pixel values and visual effect of each combination.
+
+---
+
+## Check the accessibility report
+
+Every generated theme includes 18 pre-computed WCAG contrast ratios:
+
+```ts
+const { accessibility } = theme.light;
+
+// Text legibility
+accessibility.textOnBackground
+// → { ratio: 14.1, level: 'AAA' }
+
+accessibility.mutedOnBackground
+// → { ratio: 4.6, level: 'AA' }
+
+// Brand colors
+accessibility.primaryOnBackground
+// → { ratio: 5.2, level: 'AA' }
+
+// Intent colors
+accessibility.dangerOnBackground
+// → { ratio: 4.8, level: 'AA' }
+
+accessibility.successOnBackground
+// → { ratio: 4.5, level: 'AA' }
+```
+
+`level` is `'AAA'`, `'AA'`, or `'FAIL'`. If any check returns `'FAIL'`, the library automatically adjusts the color and logs a warning — you still get a usable, compliant token.
+
+You ship accessible colors by default, not by remembering to check.
+
+---
+
+## What's next
+
+You now have a working theme and understand the output shape. The next chapter goes deeper: every field in `GeneratedTheme`, how tokens relate to each other, and how to build intuition for the output before writing component code.
+
+Tip: 5-minute checkpoint: You installed the package, called `generateTheme()`, read colors, states, and accessibility results, and applied tokens to CSS variables. That is the entire mental model. Everything after this is depth, not complexity.
+
+---
+
+### Chapter 03 — Understanding the Output
+Source: https://learn.esalt.net/salt-theme-gen/guide/03-understanding-the-output/
+
+## The shape of GeneratedTheme
+
+`generateTheme()` returns a single object with exactly two keys:
+
+```ts
+interface GeneratedTheme {
+  light: GeneratedThemeMode;
+  dark:  GeneratedThemeMode;
+}
+```
+
+Both modes are identical in structure. Everything inside `light` has an exact parallel in `dark`. You pick the mode at render time based on the user's preference. The math is already done for both.
+
+```ts
+const theme = generateTheme({ preset: 'ocean' });
+
+// Same structure, different values
+theme.light.colors.primary  // oklch(0.55 0.18 220)
+theme.dark.colors.primary   // oklch(0.65 0.18 220)
+```
+
+---
+
+## GeneratedThemeMode — full structure
+
+Each mode has seven top-level fields:
+
+```ts
+interface GeneratedThemeMode {
+  colors:          SemanticColors;      // 21 tokens
+  states:          IntentStates;        // 32 tokens (8 intents × 4 states)
+  surfaceElevation: SurfaceElevation;   // 4 tokens
+  spacing:         SpacingScale;        // 6 steps
+  radius:          RadiusScale;         // 7 steps
+  fontSizes:       FontSizeScale;       // 7 steps
+  accessibility:   AccessibilityReport; // 18 WCAG checks
+}
+```
+
+Let's go through each one.
+
+---
+
+## colors — 21 semantic tokens
+
+### Brand colors (4)
+
+```ts
+theme.light.colors.primary     // Main brand color. Buttons, links, active states.
+theme.light.colors.secondary   // Complementary accent. Secondary buttons, tags.
+theme.light.colors.tertiary    // Supporting accent. Highlights, badges, selection.
+theme.light.colors.quaternary  // Harmony accent. Charts, decorative elements.
+```
+
+These four are mathematically related. `secondary` is derived from `primary` using a complementary hue rotation in OKLCH. `tertiary` and `quaternary` are derived using analogous or triadic relationships depending on the `colorHarmony` option (Chapter 7 covers this in depth).
+
+The key: they are harmonious by construction, not by coincidence.
+
+### Surface colors (2)
+
+```ts
+theme.light.colors.background  // The page/screen background. Applied to <body>.
+theme.light.colors.surface     // Cards, inputs, sheets, modals — one layer up.
+```
+
+`background` is the furthest-back layer. `surface` sits on top of it. For the Ocean preset in light mode:
+- `background` → near-white with a faint blue tint
+- `surface` → white, slightly warmer
+
+In dark mode both shift toward deep navy. The tint relationship stays the same.
+
+### Text colors (2)
+
+```ts
+theme.light.colors.text    // Primary text. Use for headings, body copy, labels.
+theme.light.colors.muted   // Secondary text. Placeholders, captions, helper text.
+```
+
+Both are checked against `background` in the accessibility report. `text` always passes WCAG AAA. `muted` always passes WCAG AA. If the generated values would fail, the library adjusts them automatically.
+
+### Structural (1)
+
+```ts
+theme.light.colors.border  // Lines, dividers, input outlines, table borders.
+```
+
+`border` is a mid-tone between `surface` and `muted`. It is visible enough to define structure but subtle enough not to compete with content.
+
+### Intent colors (4)
+
+```ts
+theme.light.colors.danger   // Destructive actions, error messages, delete buttons.
+theme.light.colors.success  // Confirmations, completed states, positive feedback.
+theme.light.colors.warning  // Non-critical alerts, caution states.
+theme.light.colors.info     // Informational content, neutral notifications.
+```
+
+These are hue-fixed: danger is always red, success is always green, warning is always amber, info is always blue. They are adjusted for chroma and lightness to be harmonious with the primary color, but the hue never drifts. Red means danger in every preset.
+
+### Foreground pairs (8)
+
+```ts
+theme.light.colors.onPrimary    // Text/icons placed on primary backgrounds
+theme.light.colors.onSecondary  // Text/icons placed on secondary backgrounds
+theme.light.colors.onTertiary   // Text/icons placed on tertiary backgrounds
+theme.light.colors.onQuaternary // Text/icons placed on quaternary backgrounds
+theme.light.colors.onDanger     // Text/icons placed on danger backgrounds
+theme.light.colors.onSuccess    // Text/icons placed on success backgrounds
+theme.light.colors.onWarning    // Text/icons placed on warning backgrounds
+theme.light.colors.onInfo       // Text/icons placed on info backgrounds
+```
+
+Each `on*` token is either near-white or near-black depending on which passes WCAG AA with its paired background. The library checks both and picks the higher-contrast option.
+
+This is the pattern you use every time you fill a surface with an intent color:
+
+```ts
+// The paired pattern — always correct
+<Badge style={{
+  backgroundColor: theme.light.colors.danger,
+  color: theme.light.colors.onDanger,
+}}>
+  Error
+</Badge>
+```
+
+You never call a contrast checker. You never look up which text color works on red. `onDanger` is the answer, computed and verified.
+
+---
+
+## states — 32 tokens
+
+Every interactive intent color has four behavioral states:
+
+```ts
+theme.light.states.primary.hover     // Cursor enters — slightly lighter
+theme.light.states.primary.pressed   // Button held — slightly darker
+theme.light.states.primary.focused   // Keyboard focus — visible, distinct from hover
+theme.light.states.primary.disabled  // Inactive — desaturated, low contrast intentionally
+```
+
+All eight intents follow the same pattern:
+
+```ts
+// The full set
+theme.light.states.primary
+theme.light.states.secondary
+theme.light.states.tertiary
+theme.light.states.quaternary
+theme.light.states.danger
+theme.light.states.success
+theme.light.states.warning
+theme.light.states.info
+```
+
+### Why states matter
+
+The alternative is inventing your own rule. Common ad-hoc approaches and their failure modes:
+
+| Ad-hoc approach | Problem |
+| --------------- | ------- |
+| `opacity: 0.8` on hover | Changes alpha, not lightness. Looks muddy on non-white backgrounds. |
+| `filter: brightness(0.9)` | Works on screenshots, breaks on OKLCH and wide-gamut displays. |
+| Hardcoded hex offset | Consistent on one color. Arbitrary on a different preset. |
+| `opacity: 0.5` for disabled | Fails accessibility — disabled elements should still be visually identifiable, not invisible. |
+
+The generated states are lightness shifts in OKLCH — perceptually consistent regardless of hue.
+
+### Using states in CSS
+
+```css
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.btn-primary:hover    { background: var(--state-primary-hover); }
+.btn-primary:active   { background: var(--state-primary-pressed); }
+.btn-primary:focus-visible { outline: 2px solid var(--state-primary-focused); }
+.btn-primary:disabled { background: var(--state-primary-disabled); cursor: not-allowed; }
+```
+
+Four lines cover the entire interactive lifecycle.
+
+---
+
+## surfaceElevation — 4 tokens
+
+```ts
+theme.light.surfaceElevation.card      // Base elevated surface. Cards, sheets.
+theme.light.surfaceElevation.elevated  // Second level. Floating panels, bottom sheets.
+theme.light.surfaceElevation.modal     // Third level. Modals, dialogs, drawers.
+theme.light.surfaceElevation.popover   // Top level. Tooltips, dropdowns, menus.
+```
+
+Elevation is a lightness step above `surface`. In light mode the steps go slightly lighter. In dark mode they go slightly lighter too — which matches the Material Design and iOS elevation conventions (dark surfaces get lighter as they rise, not darker).
+
+```ts
+// Ocean light mode — subtle steps upward
+theme.light.colors.background          // oklch(0.98 0.005 220) — base
+theme.light.colors.surface             // oklch(1.00 0.002 220) — one step up
+theme.light.surfaceElevation.card      // oklch(1.00 0.003 220) — card layer
+theme.light.surfaceElevation.elevated  // oklch(0.99 0.005 220) — floating
+theme.light.surfaceElevation.modal     // oklch(0.98 0.006 220) — modal
+theme.light.surfaceElevation.popover   // oklch(0.97 0.007 220) — dropdown
+```
+
+The shifts are subtle by design. Elevation depth is communicated primarily through shadow (which you own) and context (position in the DOM), with color as a secondary signal.
+
+---
+
+## spacing — 6 steps
+
+```ts
+theme.light.spacing.xs   // Extra small
+theme.light.spacing.sm   // Small
+theme.light.spacing.md   // Medium (base)
+theme.light.spacing.lg   // Large
+theme.light.spacing.xl   // Extra large
+theme.light.spacing.xxl  // Double extra large
+```
+
+Values in pixels for `spacing: 'default'`:
+
+| Token | Value |
+| ----- | ----- |
+| `xs` | 4px |
+| `sm` | 8px |
+| `md` | 12px |
+| `lg` | 16px |
+| `xl` | 24px |
+| `xxl` | 40px |
+
+For `spacing: 'compact'` all values are tighter (roughly 75%). For `spacing: 'spacious'` they are looser (roughly 133%). The ratio between steps stays consistent across scales — the system stays proportional.
+
+```css
+/* Consistent padding in compact and spacious mode — same CSS, different values */
+.card {
+  padding: var(--space-lg);
+  gap: var(--space-md);
+}
+```
+
+---
+
+## radius — 7 steps
+
+```ts
+theme.light.radius.none  // 0px — sharp corners
+theme.light.radius.sm    // Small rounding (inputs, tags)
+theme.light.radius.md    // Medium (buttons, cards)
+theme.light.radius.lg    // Large (modals, sheets)
+theme.light.radius.xl    // Extra large (hero cards)
+theme.light.radius.xxl   // Very rounded (avatars, chips)
+theme.light.radius.pill  // 9999px — fully rounded
+```
+
+Values for `radius: 'default'`:
+
+| Token | Value |
+| ----- | ----- |
+| `none` | 0px |
+| `sm` | 4px |
+| `md` | 8px |
+| `lg` | 14px |
+| `xl` | 20px |
+| `xxl` | 28px |
+| `pill` | 9999px |
+
+```ts
+// Change the whole personality of the UI in one line
+generateTheme({ preset: 'ocean', radius: 'none' })   // Sharp, technical
+generateTheme({ preset: 'ocean', radius: 'default' }) // Balanced
+generateTheme({ preset: 'ocean', radius: 'pill' })    // Soft, consumer
+```
+
+---
+
+## fontSizes — 7 steps
+
+```ts
+theme.light.fontSizes.xs   // Caption, legal text
+theme.light.fontSizes.sm   // Helper text, labels
+theme.light.fontSizes.md   // Body text (base)
+theme.light.fontSizes.lg   // Large body, subheading
+theme.light.fontSizes.xl   // Section heading
+theme.light.fontSizes.xxl  // Page heading
+theme.light.fontSizes['3xl'] // Hero heading
+```
+
+Values for `fontSize: 'default'` (in px):
+
+| Token | Value |
+| ----- | ----- |
+| `xs` | 11px |
+| `sm` | 13px |
+| `md` | 15px |
+| `lg` | 18px |
+| `xl` | 22px |
+| `xxl` | 28px |
+| `3xl` | 38px |
+
+The scale is not linear — it is a modular scale based on a ratio (~1.25), so steps feel visually even rather than numerically even.
+
+```css
+h1 { font-size: var(--text-3xl); }
+h2 { font-size: var(--text-xxl); }
+h3 { font-size: var(--text-xl); }
+p  { font-size: var(--text-md); }
+small { font-size: var(--text-sm); }
+```
+
+---
+
+## accessibility — 18 WCAG checks
+
+The `AccessibilityReport` contains pre-computed contrast ratios for the most important color pairings:
+
+```ts
+interface AccessibilityReport {
+  // Text legibility
+  textOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  mutedOnBackground:     { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  textOnSurface:         { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // Brand on background
+  primaryOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  secondaryOnBackground: { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  tertiaryOnBackground:  { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // Foreground on intent (button text legibility)
+  onPrimaryOnPrimary:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onSecondaryOnSecondary:{ ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onTertiaryOnTertiary:  { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // Intent colors on background
+  dangerOnBackground:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  successOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  warningOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  infoOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // On-intent foregrounds
+  onDangerOnDanger:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onSuccessOnSuccess:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onWarningOnWarning:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  onInfoOnInfo:          { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+
+  // Border visibility
+  borderOnBackground:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+}
+```
+
+WCAG thresholds:
+- **AAA** — ratio ≥ 7.0 (strongest)
+- **AA** — ratio ≥ 4.5 for normal text, ≥ 3.0 for large text
+- **FAIL** — ratio < 4.5
+
+If a check would return `'FAIL'`, the library auto-corrects the color (adjusting OKLCH lightness until the ratio passes) and emits a `console.warn`. You still receive a usable token. You can read the report to see which, if any, required adjustment.
+
+```ts
+const report = theme.light.accessibility;
+
+const failures = Object.entries(report)
+  .filter(([, v]) => v.level === 'FAIL')
+  .map(([k]) => k);
+
+// Almost always empty — the library corrects before you see failures
+console.log(failures);
+```
+
+---
+
+## How tokens relate to each other
+
+Understanding the relationships helps you use the system without guessing:
+
+| Use case | Token |
+| -------- | ----- |
+| Page background | `colors.background` |
+| Card / input background | `colors.surface` or `surfaceElevation.card` |
+| Primary text on background | `colors.text` |
+| Secondary text, captions | `colors.muted` |
+| Lines, dividers | `colors.border` |
+| Main action (button fill) | `colors.primary` |
+| Text on that button | `colors.onPrimary` |
+| Button hover | `states.primary.hover` |
+| Button focus ring | `states.primary.focused` |
+| Disabled button | `states.primary.disabled` |
+| Error message background | `colors.danger` |
+| Text in error message | `colors.onDanger` |
+| Floating dropdown background | `surfaceElevation.popover` |
+| Gap between elements | `spacing.md` |
+| Card corners | `radius.md` |
+| Body text size | `fontSizes.md` |
+
+---
+
+## The TypeScript types
+
+All types are exported from `salt-theme-gen`. When you import the theme in TypeScript you get full autocomplete:
+
+```ts
+import type {
+  GeneratedTheme,
+  GeneratedThemeMode,
+  SemanticColors,
+  IntentStates,
+  SurfaceElevation,
+  SpacingScale,
+  RadiusScale,
+  FontSizeScale,
+  AccessibilityReport,
+  AccessibilityEntry,
+} from 'salt-theme-gen';
+```
+
+Chapter 11 covers the complete type reference, strict mode, and TypeScript integration patterns in detail.
+
+---
+
+## A complete mental model
+
+You now know the full output shape. Before the next chapter, here is the mental model in one paragraph:
+
+> `generateTheme()` returns `light` and `dark` modes. Each mode has **colors** (21 semantic tokens covering brand, surface, text, border, intent, and foreground pairs), **states** (32 behavioral variants for interactive elements), **surfaceElevation** (4 depth layers), three **scales** (spacing, radius, fontSizes), and an **accessibility report** (18 WCAG contrast checks). The tokens are mathematically related — change the preset or scale and every value updates consistently.
+
+The next chapter goes one level up: the 20 built-in presets, how each one is tuned, and how to use a custom hex color instead.
+
+Note: Inspect in the browser: If you are running this site locally with `astro dev`, open DevTools and inspect `:root`. Every CSS variable generated from the Ocean preset is visible there — all 80+ tokens, light and dark.
+
+---
+
+### Chapter 04 — Color Presets
+Source: https://learn.esalt.net/salt-theme-gen/guide/04-color-presets/
+
+## Two ways to start
+
+`generateTheme()` accepts either a named preset or a custom hex color — never both at once:
+
+```ts
+// Option 1 — named preset
+generateTheme({ preset: 'ocean' })
+
+// Option 2 — custom hex
+generateTheme({ primary: '#E11D48' })
+```
+
+Both produce the exact same output shape. The difference is only in what drives the primary OKLCH value — a pre-tuned hue or your own brand color.
+
+---
+
+## The 20 presets
+
+Each preset is defined by a specific OKLCH hue angle and a tuned chroma value. The hue gives you the color family. The chroma controls how saturated or muted the palette feels.
+
+### Cool presets
+
+**`ocean`** — Hue ~220° (blue)
+The default preset. A medium-chroma blue that reads as professional and trustworthy without being corporate. Works well for SaaS, developer tools, and productivity apps.
+
+```ts
+generateTheme({ preset: 'ocean' })
+// primary: oklch(0.55 0.18 220)
+```
+
+---
+
+**`arctic`** — Hue ~210° (icy blue)
+Lighter and more desaturated than Ocean. Clean and minimal. Works well for healthcare, documentation sites, and tools where clarity matters more than personality.
+
+```ts
+generateTheme({ preset: 'arctic' })
+```
+
+---
+
+**`sapphire`** — Hue ~230° (deep blue)
+Richer and more saturated than Ocean. The blue has weight — closer to a deep royal blue. Works well for financial products, legal tools, or anything where authority is the primary signal.
+
+```ts
+generateTheme({ preset: 'sapphire' })
+```
+
+---
+
+**`storm`** — Hue ~240° (blue-purple)
+A blue that shifts toward violet. Slightly muted chroma keeps it from reading as purple. Works well for analytics dashboards, dark-heavy UIs, and security products.
+
+```ts
+generateTheme({ preset: 'storm' })
+```
+
+---
+
+**`peacock`** — Hue ~195° (teal-blue)
+Between blue and teal. High chroma, vivid and vibrant. Works well for consumer apps, travel products, and anything needing energy without aggression.
+
+```ts
+generateTheme({ preset: 'peacock' })
+```
+
+---
+
+### Teal and green presets
+
+**`mint`** — Hue ~175° (soft teal-green)
+Light, fresh, and calm. Low chroma keeps it from reading as green. Works well for health apps, note-taking tools, and productivity software with a calm personality.
+
+```ts
+generateTheme({ preset: 'mint' })
+```
+
+---
+
+**`emerald`** — Hue ~150° (medium green)
+A confident, slightly warm green. Not so saturated that it reads as neon. Works well for finance (growth), environment, and wellness brands.
+
+```ts
+generateTheme({ preset: 'emerald' })
+```
+
+---
+
+**`forest`** — Hue ~140° (deep green)
+Dark, earthy green with moderate chroma. Grounded and reliable. Works well for sustainability brands, outdoor products, and anything that needs a natural feel.
+
+```ts
+generateTheme({ preset: 'forest' })
+```
+
+---
+
+### Purple and violet presets
+
+**`lavender`** — Hue ~290° (soft purple)
+Muted, calm violet. Low chroma gives it a refined softness. Works well for creative tools, journaling apps, and consumer products targeting a calm aesthetic.
+
+```ts
+generateTheme({ preset: 'lavender' })
+```
+
+---
+
+**`twilight`** — Hue ~270° (medium purple)
+A balanced purple — not too red, not too blue. Works well for creative platforms, AI products, and anything wanting a modern but approachable personality.
+
+```ts
+generateTheme({ preset: 'twilight' })
+```
+
+---
+
+**`aurora`** — Hue ~185° shifting toward purple
+A teal-to-violet character that evokes the aurora borealis. High chroma, vivid. Works well for AI tools, futuristic products, and apps where "impressive at first glance" is a goal.
+
+```ts
+generateTheme({ preset: 'aurora' })
+```
+
+---
+
+### Warm presets
+
+**`rose-gold`** — Hue ~15° (warm pink-red)
+Sophisticated, warm, and premium. Low-to-medium chroma keeps it from reading as pink. Works well for luxury products, beauty tools, and consumer brands targeting warmth and elegance.
+
+```ts
+generateTheme({ preset: 'rose-gold' })
+```
+
+---
+
+**`cherry-blossom`** — Hue ~355° (soft pink)
+Delicate and light. Higher chroma than rose-gold but softer than red. Works well for lifestyle apps, consumer social platforms, and any product where warmth and approachability are primary.
+
+```ts
+generateTheme({ preset: 'cherry-blossom' })
+```
+
+---
+
+**`coral-reef`** — Hue ~25° (orange-pink)
+Warm and energetic. Sits between pink and orange. Works well for food apps, social products, and consumer tools where friendliness and energy are key.
+
+```ts
+generateTheme({ preset: 'coral-reef' })
+```
+
+---
+
+**`sunset`** — Hue ~35° (warm orange)
+A confident, warm orange. Not bright enough to be aggressive, not muted enough to lose energy. Works well for startup landing pages, creative platforms, and tools with high energy.
+
+```ts
+generateTheme({ preset: 'sunset' })
+```
+
+---
+
+**`honey`** — Hue ~60° (amber-yellow)
+Warm amber with a golden character. Works well for food brands, marketplace products, and anything where approachability and warmth are the dominant values.
+
+```ts
+generateTheme({ preset: 'honey' })
+```
+
+---
+
+### High-drama presets
+
+**`volcano`** — Hue ~20° (deep red-orange)
+High chroma, intense. The most aggressive preset. Works well for security products (threat alerts), gaming tools, or products where urgency and power are core to the identity.
+
+```ts
+generateTheme({ preset: 'volcano' })
+```
+
+---
+
+**`desert`** — Hue ~50° (sandy tan)
+Warm and earthy, low chroma. Feels aged and refined. Works well for editorial products, content-first apps, and luxury brands that prefer restraint over boldness.
+
+```ts
+generateTheme({ preset: 'desert' })
+```
+
+---
+
+**`midnight`** — Hue ~250° (very dark blue-purple)
+An extremely dark, near-black primary with a blue-purple tint. Works well for dark-first products, terminal-style tools, and developer utilities where a subdued palette is preferred.
+
+```ts
+generateTheme({ preset: 'midnight' })
+```
+
+---
+
+**`autumn`** — Hue ~40° (warm red-orange)
+Rich and earthy. Deeper than sunset, more orange than volcano. Works well for editorial content, lifestyle brands, and seasonal products.
+
+```ts
+generateTheme({ preset: 'autumn' })
+```
+
+---
+
+## Comparing presets in code
+
+To compare multiple presets side by side, generate them all and inspect:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const presets = ['ocean', 'forest', 'sunset', 'aurora', 'midnight'] as const;
+
+for (const preset of presets) {
+  const theme = generateTheme({ preset });
+  console.log(preset, {
+    primary: theme.light.colors.primary,
+    secondary: theme.light.colors.secondary,
+    ratio: theme.light.accessibility.primaryOnBackground.ratio,
+  });
+}
+```
+
+This is also the quickest way to audit which presets meet your contrast requirements before committing to one.
+
+---
+
+## Using a custom hex color
+
+If you have a brand color, use it directly. The library converts hex to OKLCH internally:
+
+```ts
+generateTheme({ primary: '#E11D48' })  // Rose red
+generateTheme({ primary: '#7C3AED' })  // Violet
+generateTheme({ primary: '#059669' })  // Emerald green
+generateTheme({ primary: '#D97706' })  // Amber
+```
+
+Any valid 6-digit hex value works. The library does not require the hex to be within a specific gamut — it converts to OKLCH and clips to the displayable range if needed.
+
+### What happens under the hood
+
+When you pass a hex color:
+
+1. The hex is parsed to linear RGB.
+2. Linear RGB is converted to OKLCH using the standard CIE conversion matrix.
+3. The resulting `L`, `C`, `H` values become the basis for your primary color.
+4. Secondary, tertiary, and quaternary colors are derived using hue rotations in OKLCH (the harmony algorithm — Chapter 7).
+5. Dark mode variants are computed by adjusting `L` while holding `C` and `H` constant.
+6. State colors shift `L` by fixed perceptual increments.
+7. `on*` colors are chosen from near-white or near-black based on WCAG contrast.
+
+All of this runs at build time or on the server — never in the browser.
+
+### Validating your hex color
+
+The library emits a `console.warn` if:
+- The hex produces an OKLCH lightness below `0.15` (too dark for the default light mode primary)
+- The hex produces an OKLCH lightness above `0.90` (too light — will fail contrast on white backgrounds)
+- Any derived color requires auto-correction to pass WCAG AA
+
+You can check the accessibility report after generation to see the final contrast ratios:
+
+```ts
+const theme = generateTheme({ primary: '#FFDD00' }); // Very light yellow
+
+// The library auto-corrects — primary may be darkened to pass AA
+console.log(theme.light.accessibility.primaryOnBackground);
+// { ratio: 4.6, level: 'AA' }
+```
+
+---
+
+## Preset vs custom — when to use each
+
+| Situation | Recommendation |
+| --------- | -------------- |
+| Prototyping or exploring | Use a preset — fast, no decision needed |
+| Side project with no brand color | Use a preset — pick the personality you want |
+| Client work with a brand color | Use `primary: '#hex'` — honor the brand |
+| Matching an existing design system | Use `primary: '#hex'` with the system's primary |
+| Teaching or demos | Use `ocean` — familiar to anyone who has seen this guide |
+| Dark-first product | Start with `midnight` or `storm` |
+| Soft, consumer feel | Start with `mint`, `lavender`, or `cherry-blossom` |
+| High-energy startup | Start with `aurora`, `sunset`, or `peacock` |
+
+---
+
+## Combining presets with scales
+
+Presets and scales are independent. You can mix any preset with any spacing, radius, or font size scale:
+
+```ts
+// Corporate SaaS — trustworthy blue, tight layout, sharp corners
+generateTheme({ preset: 'sapphire', spacing: 'compact', radius: 'none' })
+
+// Consumer app — warm orange, generous layout, very rounded
+generateTheme({ preset: 'sunset', spacing: 'spacious', radius: 'pill' })
+
+// Developer tool — muted dark, compact, monospace-friendly
+generateTheme({ preset: 'midnight', spacing: 'compact', radius: 'sm' })
+```
+
+Chapter 5 covers the exact values produced by each scale combination.
+
+---
+
+## A note on preset naming
+
+The preset names are evocative, not literal. `ocean` does not mean "a blue that looks like the ocean." It means "a blue with these OKLCH parameters that produces a specific visual character." Use the names as starting points for exploration, not as strict semantic categories.
+
+The best way to choose is to generate a few candidates and look at them in your UI. The generated CSS variables mean a preset swap is a one-word change.
+
+Tip: StackBlitz demo: The companion StackBlitz project for this chapter lets you switch presets live and see the full token output update in real time. Link in the Integrations section after Chapter 11.
+
+---
+### Chapter 05 — Design Scale Presets
+Source: https://learn.esalt.net/salt-theme-gen/guide/05-design-scales/
+
+## What scales are
+
+Scales are the non-color dimension of your design system. While colors define identity, scales define **feel** — how tight or spacious the layout breathes, how sharp or soft the edges are, how large or small the text reads.
+
+`salt-theme-gen` provides three independent scales, each with preset options:
+
+```ts
+generateTheme({
+  preset: 'ocean',
+  spacing: 'default',   // 'compact' | 'default' | 'spacious'
+  radius:  'default',   // 'none' | 'sm' | 'default' | 'lg' | 'pill'
+  fontSize: 'default',  // 'small' | 'default' | 'large'
+})
+```
+
+They are completely independent. You can combine any spacing with any radius and any font size.
+
+---
+
+## Spacing scale
+
+Spacing controls all gap, padding, and margin values in your system. Six named steps cover the full range from tight component internals to section-level breathing room.
+
+### Spacing preset values (in px)
+
+| Token | `compact` | `default` | `spacious` |
+| ----- | --------- | --------- | ---------- |
+| `xs`  | 2         | 4         | 6          |
+| `sm`  | 4         | 8         | 12         |
+| `md`  | 8         | 12        | 20         |
+| `lg`  | 12        | 16        | 28         |
+| `xl`  | 16        | 24        | 40         |
+| `xxl` | 24        | 40        | 64         |
+
+### Reading the table
+
+- `md` is the **base unit** — button padding, card internal spacing, form field padding.
+- `sm` is for **tight internals** — icon gaps, badge padding, list item gaps.
+- `lg` is for **component separation** — space between a label and its input, between a heading and a paragraph.
+- `xl` is for **section internals** — card padding, sidebar padding.
+- `xxl` is for **section separation** — vertical rhythm between major page sections.
+
+### `compact` — dense, information-rich layouts
+
+Use when you need to show maximum content per screen. Common in:
+- Admin dashboards and data tables
+- Developer tools and terminals
+- IDE sidebars and toolbars
+- Financial applications with many numbers per row
+
+```css
+/* compact: button padding */
+padding: var(--space-sm) var(--space-md); /* 4px 8px */
+```
+
+### `default` — balanced, general-purpose
+
+The safe starting point for any product. Works for:
+- SaaS applications
+- Documentation sites
+- Most consumer web apps
+- E-commerce
+
+```css
+/* default: button padding */
+padding: var(--space-sm) var(--space-lg); /* 8px 16px */
+```
+
+### `spacious` — generous, editorial layouts
+
+Use when you want the layout to breathe and content to feel premium. Common in:
+- Marketing and landing pages
+- Editorial and content-first sites
+- Luxury or premium product pages
+- Mobile-first apps where touch targets need extra room
+
+```css
+/* spacious: button padding */
+padding: var(--space-sm) var(--space-lg); /* 12px 28px */
+```
+
+### Spacing in practice
+
+```css
+/* The same CSS works across all spacing presets */
+.card {
+  padding: var(--space-xl);
+  gap: var(--space-md);
+}
+
+.form-field {
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.page-section {
+  padding: var(--space-xxl) 0;
+}
+```
+
+Change `spacing: 'compact'` to `spacing: 'spacious'` in your `generateTheme()` call, regenerate your CSS variables, and every one of these values updates automatically. Your component CSS never changes.
+
+---
+
+## Radius scale
+
+Radius controls border rounding across your entire interface. Seven steps from perfectly sharp to fully pill-shaped.
+
+### Radius preset values (in px)
+
+| Token  | `none` | `sm` | `default` | `lg` | `pill` |
+| ------ | ------ | ---- | --------- | ---- | ------ |
+| `none` | 0      | 0    | 0         | 0    | 0      |
+| `sm`   | 0      | 2    | 4         | 6    | 4      |
+| `md`   | 0      | 4    | 8         | 12   | 9999   |
+| `lg`   | 0      | 6    | 14        | 20   | 9999   |
+| `xl`   | 0      | 8    | 20        | 28   | 9999   |
+| `xxl`  | 0      | 10   | 28        | 36   | 9999   |
+| `pill` | 0      | 9999 | 9999      | 9999 | 9999   |
+
+The `pill` preset sets most sizes to `9999px` — anything short enough becomes fully rounded. Only the `none` column is always 0.
+
+### `none` — sharp edges, zero rounding
+
+Every element is rectangular. Reads as technical, precise, rigorous. Common in:
+- Terminal and CLI interfaces
+- Code editors and developer tools
+- Financial data products
+- Brutalist or editorial design aesthetics
+
+```css
+/* Borders are always rectangular */
+.btn { border-radius: var(--radius-md); } /* 0px */
+.card { border-radius: var(--radius-lg); } /* 0px */
+```
+
+### `sm` — subtle rounding, mostly sharp
+
+Very light rounding on smaller elements. Large elements remain near-rectangular. Reads as professional with a slight softness. Common in:
+- Enterprise SaaS
+- Productivity software
+- B2B tools
+
+### `default` — balanced, broadly appropriate
+
+The most versatile choice. Small elements (inputs, tags) get subtle rounding. Large elements (cards, modals) get noticeable but not exaggerated rounding. Common in:
+- Most web applications
+- Documentation
+- Component libraries
+
+```css
+.tag    { border-radius: var(--radius-sm); }  /* 4px */
+.btn    { border-radius: var(--radius-md); }  /* 8px */
+.card   { border-radius: var(--radius-lg); }  /* 14px */
+.modal  { border-radius: var(--radius-xl); }  /* 20px */
+```
+
+### `lg` — confident, modern rounding
+
+Noticeably rounded at all sizes. Reads as contemporary and friendly. Common in:
+- Consumer mobile apps
+- Startup landing pages
+- Modern SaaS products targeting non-technical users
+
+### `pill` — soft, fully rounded
+
+Buttons, inputs, and chips become stadium-shaped. Cards and modals have significant rounding. Reads as playful, friendly, consumer-oriented. Common in:
+- Social apps
+- Health and wellness
+- Fintech consumer apps (Revolut-style)
+- Mobile-first experiences
+
+```css
+.btn    { border-radius: var(--radius-md); }  /* 9999px stadium */
+.tag    { border-radius: var(--radius-sm); }  /* 9999px fully rounded */
+.card   { border-radius: var(--radius-xl); }  /* 9999px large rounded */
+```
+
+### Mixing radius with element size
+
+The `pill` token (`9999px`) creates a stadium shape on any element. Use it for:
+- Pill buttons
+- Rounded badges
+- Tag chips
+- Avatar crops
+
+```css
+.avatar {
+  border-radius: var(--radius-pill); /* always fully circular for square elements */
+}
+```
+
+---
+
+## Font size scale
+
+Font sizes follow a modular scale based on a ~1.25 ratio. Seven named steps from caption to hero heading.
+
+### Font size preset values (in px)
+
+| Token | `small` | `default` | `large` |
+| ----- | ------- | --------- | ------- |
+| `xs`  | 10      | 11        | 12      |
+| `sm`  | 11      | 13        | 14      |
+| `md`  | 13      | 15        | 17      |
+| `lg`  | 15      | 18        | 21      |
+| `xl`  | 18      | 22        | 26      |
+| `xxl` | 22      | 28        | 34      |
+| `3xl` | 30      | 38        | 48      |
+
+### `small` — compact, dense text
+
+Appropriate for:
+- Admin interfaces with dense data
+- Developer tools (IDE-like UIs)
+- Secondary content in information-rich UIs
+- Mobile-first apps where screen real estate is limited
+
+```css
+body { font-size: var(--text-md); } /* 13px */
+h1   { font-size: var(--text-3xl); } /* 30px */
+```
+
+### `default` — universal baseline
+
+Readable for most users on most screens. Suitable for:
+- Any web application without a strong reason to go larger or smaller
+- Documentation and instructional content
+- Marketing sites
+
+```css
+body { font-size: var(--text-md); } /* 15px */
+h1   { font-size: var(--text-3xl); } /* 38px */
+```
+
+### `large` — accessible, editorial
+
+Generous text sizes for:
+- Accessibility-focused products (older audiences, vision accessibility)
+- Marketing sites where text is hero content
+- Long-form editorial and blog content
+- TV/large-screen interfaces
+
+```css
+body { font-size: var(--text-md); } /* 17px */
+h1   { font-size: var(--text-3xl); } /* 48px */
+```
+
+### A practical type scale
+
+Apply the scale to semantic HTML elements once in your global styles:
+
+```css
+h1, .text-3xl { font-size: var(--text-3xl); line-height: 1.1; }
+h2, .text-xxl { font-size: var(--text-xxl); line-height: 1.2; }
+h3, .text-xl  { font-size: var(--text-xl);  line-height: 1.3; }
+h4, .text-lg  { font-size: var(--text-lg);  line-height: 1.4; }
+p,  .text-md  { font-size: var(--text-md);  line-height: 1.75; }
+small, .text-sm { font-size: var(--text-sm); line-height: 1.6; }
+.text-xs      { font-size: var(--text-xs);  line-height: 1.5; }
+```
+
+Every `font-size` in your UI now comes from the same seven steps. No more rogue `14px` or `17px` values scattered across components.
+
+---
+
+## Combining scales — personality matrix
+
+The real power of independent scales is the personality you create by combining them. Here are common combinations:
+
+### Corporate / enterprise B2B
+
+```ts
+generateTheme({ preset: 'sapphire', spacing: 'compact', radius: 'none', fontSize: 'small' })
+```
+Sharp edges, dense information, small text. Reads as serious and data-focused.
+
+---
+
+### Modern SaaS (Linear, Vercel-style)
+
+```ts
+generateTheme({ preset: 'ocean', spacing: 'default', radius: 'default', fontSize: 'default' })
+```
+Balanced in every dimension. Professional but not stiff. The most common combination.
+
+---
+
+### Consumer mobile app
+
+```ts
+generateTheme({ preset: 'aurora', spacing: 'spacious', radius: 'pill', fontSize: 'large' })
+```
+Generous spacing, full rounding, large touch-friendly text. Every element feels approachable.
+
+---
+
+### Editorial / content-first
+
+```ts
+generateTheme({ preset: 'desert', spacing: 'spacious', radius: 'sm', fontSize: 'large' })
+```
+Lots of breathing room, minimal rounding, generous text. The layout gets out of the way of the content.
+
+---
+
+### Developer tool / terminal-adjacent
+
+```ts
+generateTheme({ preset: 'midnight', spacing: 'compact', radius: 'none', fontSize: 'small' })
+```
+Dark, dense, sharp. Everything signals precision and control.
+
+---
+
+### Startup landing page
+
+```ts
+generateTheme({ preset: 'sunset', spacing: 'spacious', radius: 'lg', fontSize: 'default' })
+```
+Energetic color, generous layout, noticeable rounding. Designed to impress at first scroll.
+
+---
+
+## Switching scales at runtime
+
+Scales are defined once at theme generation time — they are not dynamic. If you want runtime scale switching (for example, a user-controlled density preference), generate multiple themes and swap the CSS variable block:
+
+```ts
+const compact  = generateTheme({ preset: 'ocean', spacing: 'compact' });
+const spacious = generateTheme({ preset: 'ocean', spacing: 'spacious' });
+
+// Swap on user preference change
+function applyDensity(dense: boolean) {
+  const vars = dense
+    ? compactSpacingVars(compact.light)
+    : spaciousSpacingVars(spacious.light);
+  document.documentElement.style.cssText += vars;
+}
+```
+
+For most products this is unnecessary — pick a scale at build time and commit to it. But the option exists.
+
+---
+
+## What scales do not control
+
+Scales control spacing, radius, and font size **steps**. They do not control:
+
+- **Line height** — set this in your global CSS (`line-height: 1.75` for body text is a safe default)
+- **Font weight** — choose weights for headings and body text in your CSS
+- **Font family** — bring your own typeface; salt-theme-gen is font-agnostic
+- **Shadow** — elevation depth is expressed through `surfaceElevation` colors, not shadow values. Add your own `box-shadow` as needed.
+- **Transition duration** — define motion in your CSS
+
+The design scales give you the geometry of your system. You own the typography and motion.
+
+Note: When in doubt, start with `spacing: 'default'`, `radius: 'default'`, and `fontSize: 'default'`. These are calibrated to feel balanced on most screens. Move away from the defaults only when you have a specific product reason.
+
+---
+### Chapter 06 — Accessibility Built-in
+Source: https://learn.esalt.net/salt-theme-gen/guide/06-accessibility/
+
+## Why accessibility is a color problem
+
+Most accessibility failures in production UIs come from one source: **colors chosen without measuring contrast**. Designers pick colors they find attractive. Developers implement them faithfully. Neither party runs a contrast check until QA or an audit catches failures weeks later.
+
+The fix — "darken the text a bit" or "lighten the background slightly" — is applied by eye. It passes the checker but now the color is no longer in your system. It's a one-off patch. The next color you add has the same problem.
+
+`salt-theme-gen` solves this by measuring contrast at generation time, correcting failures before you ever see them, and giving you the report to verify.
+
+---
+
+## The AccessibilityReport
+
+Every generated theme mode includes an `AccessibilityReport`:
+
+```ts
+const { accessibility } = theme.light;
+```
+
+Each entry in the report has the same shape:
+
+```ts
+interface AccessibilityEntry {
+  ratio: number;  // The actual contrast ratio (e.g. 5.2)
+  level: 'AAA' | 'AA' | 'FAIL';
+}
+```
+
+Contrast ratio is calculated using the WCAG 2.1 relative luminance formula. The range is 1:1 (no contrast — same color) to 21:1 (maximum — black on white).
+
+---
+
+## WCAG thresholds
+
+| Level | Minimum ratio | Use case |
+| ----- | ------------- | -------- |
+| **AA** | 4.5:1 | Normal text (under ~18px or non-bold) |
+| **AA Large** | 3.0:1 | Large text (18px+ regular or 14px+ bold) |
+| **AAA** | 7.0:1 | Enhanced — strictest requirement |
+| **FAIL** | < 3.0:1 | Fails all standards |
+
+The library targets **AA as the minimum** for all 18 checks. If a check would fall below 4.5, the relevant color is auto-corrected. AAA is reported when achieved but not required.
+
+---
+
+## All 18 checks
+
+### Text legibility (3)
+
+These are the most critical checks — they validate that readable text is actually readable.
+
+```ts
+accessibility.textOnBackground
+// Primary text color on page background
+// Expected: AAA — this should always be > 7:1
+
+accessibility.mutedOnBackground
+// Muted text (placeholders, captions) on page background
+// Expected: AA — passes 4.5:1 minimum
+
+accessibility.textOnSurface
+// Primary text on card/input surface
+// Expected: AAA — cards are text containers
+```
+
+These three should never fail. If your primary and muted text colors don't clear AA on your background, the entire product is inaccessible. The library ensures they pass.
+
+### Brand colors on background (3)
+
+```ts
+accessibility.primaryOnBackground
+// Primary color used as text or icon color on background
+// Expected: AA
+
+accessibility.secondaryOnBackground
+// Secondary accent as text/icon on background
+// Expected: AA
+
+accessibility.tertiaryOnBackground
+// Tertiary accent as text/icon on background
+// Expected: AA (may be AA Large at lower ratios)
+```
+
+These check whether your brand colors are usable as foreground elements — links, inline icons, active indicators. A brand color that's vivid as a button fill is not necessarily legible as body-weight text.
+
+### Foreground on intent (3)
+
+```ts
+accessibility.onPrimaryOnPrimary
+// onPrimary text on primary background — your button text
+// Expected: AA
+
+accessibility.onSecondaryOnSecondary
+// onSecondary text on secondary background
+// Expected: AA
+
+accessibility.onTertiaryOnTertiary
+// onTertiary text on tertiary background
+// Expected: AA
+```
+
+These are the most important checks for interactive elements. A button with `background: primary, color: onPrimary` must pass here or the label is illegible. The library guarantees these pass by choosing `onPrimary` from near-white or near-black — whichever has the higher contrast with `primary`.
+
+### Intent colors on background (4)
+
+```ts
+accessibility.dangerOnBackground
+// Danger color as text/icon on background (error messages, inline warnings)
+// Expected: AA
+
+accessibility.successOnBackground
+// Success color as text/icon on background
+// Expected: AA
+
+accessibility.warningOnBackground
+// Warning color as text/icon on background
+// Note: yellow/amber is hardest to pass — auto-correction may darken it significantly
+
+accessibility.infoOnBackground
+// Info color as text/icon on background
+// Expected: AA
+```
+
+`warningOnBackground` is the check most likely to require auto-correction. Yellow and amber hues have high luminance, which means they fail contrast against white backgrounds at the saturation levels that make them visually "warning-like." The library darkens the amber until it passes, then reports the corrected value.
+
+### On-intent foregrounds (4)
+
+```ts
+accessibility.onDangerOnDanger
+// Text on danger-colored backgrounds (error banners, danger badges)
+// Expected: AA
+
+accessibility.onSuccessOnSuccess
+// Text on success-colored backgrounds
+// Expected: AA
+
+accessibility.onWarningOnWarning
+// Text on warning-colored backgrounds
+// Expected: AA
+
+accessibility.onInfoOnInfo
+// Text on info-colored backgrounds
+// Expected: AA
+```
+
+### Structural (1)
+
+```ts
+accessibility.borderOnBackground
+// Border color against page background
+// Expected: 3.0:1 — uses Large Text threshold (borders are non-text UI elements)
+```
+
+Borders are structural — they communicate layout, not content. The 3.0:1 threshold (AA Large) applies. A border that is too subtle to distinguish from the background is a usability problem even if it is not a text-legibility failure.
+
+---
+
+## Reading the full report
+
+```ts
+const report = theme.light.accessibility;
+
+// Print all checks
+for (const [check, result] of Object.entries(report)) {
+  const icon = result.level === 'FAIL' ? 'FAIL' : result.level === 'AAA' ? 'AAA' : 'AA';
+  console.log(`${icon} ${check}: ${result.ratio.toFixed(1)} (${result.level})`);
+}
+```
+
+Sample output for the Ocean preset (light mode):
+
+```
+AAA textOnBackground: 14.1 (AAA)
+AA  mutedOnBackground: 4.8 (AA)
+AAA textOnSurface: 13.9 (AAA)
+AA  primaryOnBackground: 5.2 (AA)
+AA  secondaryOnBackground: 4.6 (AA)
+AA  tertiaryOnBackground: 4.5 (AA)
+AA  onPrimaryOnPrimary: 6.1 (AA)
+AA  onSecondaryOnSecondary: 5.4 (AA)
+AA  onTertiaryOnTertiary: 4.8 (AA)
+AA  dangerOnBackground: 5.1 (AA)
+AA  successOnBackground: 4.6 (AA)
+AA  warningOnBackground: 4.5 (AA)
+AA  infoOnBackground: 4.9 (AA)
+AA  onDangerOnDanger: 5.8 (AA)
+AA  onSuccessOnSuccess: 4.7 (AA)
+AA  onWarningOnWarning: 4.6 (AA)
+AA  onInfoOnInfo: 5.2 (AA)
+AA  borderOnBackground: 3.1 (AA)
+```
+
+---
+
+## Auto-correction — how it works
+
+When a generated color would fail its contrast check, the library adjusts it before returning the theme. The adjustment is always a lightness shift in OKLCH:
+
+- If the foreground needs more contrast against a light background → **darken** (`L` decreases)
+- If the foreground needs more contrast against a dark background → **lighten** (`L` increases)
+- Chroma (`C`) and hue (`H`) stay constant — the color identity is preserved
+
+The adjustment is binary-searched in OKLCH space until the contrast ratio just clears 4.5. This produces the minimum possible shift — the corrected color is as close to the original as it can be while still passing.
+
+A `console.warn` is emitted for each corrected color, identifying which check triggered it:
+
+```
+[salt-theme-gen] warningOnBackground was auto-corrected from oklch(0.78 0.16 85)
+to oklch(0.62 0.16 85) to meet WCAG AA (was 2.8, now 4.6).
+```
+
+You can suppress these warnings by setting `{ silent: true }` in the options:
+
+```ts
+generateTheme({ preset: 'honey', silent: true })
+```
+
+---
+
+## Dark mode accessibility
+
+OKLCH makes dark mode contrast predictable. When the library generates dark mode colors, it applies lightness inversions that maintain the same perceptual contrast relationships:
+
+```ts
+// Light mode
+theme.light.colors.text        // L ~= 0.12 (dark text)
+theme.light.colors.background  // L ~= 0.98 (light background)
+// high contrast
+
+// Dark mode
+theme.dark.colors.text         // L ~= 0.95 (light text)
+theme.dark.colors.background   // L ~= 0.12 (dark background)
+// same high contrast, inverted
+```
+
+The accessibility report for dark mode is generated separately and checked independently. Both modes pass AA.
+
+This is why HSL-based dark mode is unreliable: HSL lightness is not perceptually uniform. A color that passes AA at `hsl(L=50%)` in light mode may not pass when you invert to `hsl(L=50%)` in dark mode because different hues have different perceived brightness at the same `L` value. OKLCH's `L` channel is perceptually calibrated, so the math works.
+
+---
+
+## Using the report in CI
+
+You can generate a theme and assert on the accessibility report as part of your build or test suite:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+describe('theme accessibility', () => {
+  const theme = generateTheme({ primary: process.env.BRAND_COLOR ?? '#2563EB' });
+
+  const checks = Object.entries(theme.light.accessibility);
+
+  test.each(checks)('%s passes WCAG AA', (_, result) => {
+    expect(result.level).not.toBe('FAIL');
+  });
+
+  test.each(checks)('%s passes WCAG AA in dark mode', (_, _result) => {
+    const darkResult = theme.dark.accessibility[_ as keyof typeof theme.dark.accessibility];
+    expect(darkResult.level).not.toBe('FAIL');
+  });
+});
+```
+
+This gives you a CI gate: if someone changes the brand color to one that fails contrast after auto-correction (which should not happen, but paranoia is good), the build fails with a clear error.
+
+---
+
+## Building accessible components
+
+The token system makes accessible component implementation mechanical — you do not have to think about contrast at the component level:
+
+### Accessible button
+
+```tsx
+<button
+  style={{
+    backgroundColor: theme.light.colors.primary,
+    color: theme.light.colors.onPrimary,  // pre-checked AA
+  }}
+  onMouseEnter={e => e.currentTarget.style.backgroundColor = theme.light.states.primary.hover}
+  onMouseLeave={e => e.currentTarget.style.backgroundColor = theme.light.colors.primary}
+>
+  Save changes
+</button>
+```
+
+### Accessible error state
+
+```tsx
+<p style={{
+  color: theme.light.colors.danger,       // dangerOnBackground checked AA
+  backgroundColor: theme.light.colors.background,
+}}>
+  Please fix the errors above.
+</p>
+```
+
+### Accessible disabled state
+
+```tsx
+<button
+  disabled
+  style={{
+    backgroundColor: theme.light.states.primary.disabled,
+    color: theme.light.colors.onPrimary,
+    opacity: 1,  // do not use opacity for disabled — use the token
+    cursor: 'not-allowed',
+  }}
+>
+  Processing...
+</button>
+```
+
+The disabled state is desaturated and lightened — it reads as visually inactive without becoming invisible. Avoid adding `opacity: 0.5` on top of the disabled token; the token already communicates the state correctly.
+
+---
+
+## What the report does not check
+
+The 18 checks cover the color pairings that are universally meaningful. They do not cover:
+
+- **Your custom component combinations** — if you put `muted` text on a `surface` background, that pairing is not in the report. Measure it yourself with `theme.light.accessibility.textOnSurface` as a reference, or use a contrast tool with the OKLCH values.
+- **Non-color accessibility** — focus management, keyboard navigation, ARIA attributes, motion preferences. These are yours to implement.
+- **Minimum target sizes** — WCAG 2.5.5 (44x44px touch targets) is not a color concern and is out of scope.
+- **Color as the only differentiator** — using color alone to convey state (red = error, green = success) fails WCAG 1.4.1. Always pair intent color with an icon, label, or pattern.
+
+The report is a color contract, not a full accessibility audit.
+
+Tip: Auditing an existing brand color: Pass your brand hex to `generateTheme({ primary: '#yourColor' })` and read `theme.light.accessibility`. You'll immediately see which pairings pass, which are auto-corrected, and by how much. It's faster than any manual contrast tool for a full system audit.
+
+---
+### Chapter 07 — ColorHarmony & Accents
+Source: https://learn.esalt.net/salt-theme-gen/guide/07-color-harmony/
+
+## The problem with manual accent selection
+
+Most developers pick a primary color and then struggle with the rest. The secondary color gets chosen by vibes — "that green feels okay next to the blue." The tertiary is whatever was left in the Figma file. The result is a palette that passes a cursory glance but has no mathematical relationship between its parts.
+
+When the primary color changes (new brand, new client, A/B test), you do it again from scratch.
+
+`salt-theme-gen` derives all accent colors from the primary using **color harmony algorithms in OKLCH space**. Change the primary — the entire palette updates coherently.
+
+---
+
+## The four brand colors
+
+Every generated theme has four brand color slots:
+
+```ts
+theme.light.colors.primary     // Your anchor color — buttons, links, key actions
+theme.light.colors.secondary   // Complementary accent — secondary actions, tags
+theme.light.colors.tertiary    // Supporting accent — highlights, selection states
+theme.light.colors.quaternary  // Harmony accent — charts, decorative elements
+```
+
+Each is derived from `primary` by rotating the hue angle in OKLCH. The lightness and chroma are adjusted to ensure all four are visually balanced — no one color dominates unless used intentionally.
+
+---
+
+## Color harmony strategies
+
+The `colorHarmony` option controls how secondary, tertiary, and quaternary hue angles are chosen relative to primary:
+
+```ts
+generateTheme({
+  preset: 'ocean',
+  colorHarmony: 'complementary', // default
+})
+```
+
+Available strategies: `'complementary'` | `'analogous'` | `'triadic'` | `'split-complementary'`
+
+---
+
+### `complementary` (default)
+
+The secondary color sits **180 degrees across the hue wheel** from the primary. Tertiary and quaternary are placed at intermediate angles between them.
+
+```
+Primary:    H = 220 (ocean blue)
+Secondary:  H = 40  (warm amber — directly opposite)
+Tertiary:   H = 260 (between primary and secondary, shifted)
+Quaternary: H = 340 (further around toward secondary)
+```
+
+**Visual effect:** High contrast between primary and secondary. The two colors feel like opposites — one cool, one warm. Creates visual tension that draws the eye.
+
+**Best for:** Products that need a strong visual hierarchy, call-to-action contrast, or a bold visual identity. Primary is "business," secondary is "accent."
+
+```ts
+generateTheme({ preset: 'ocean', colorHarmony: 'complementary' })
+// Blue primary + amber secondary — high contrast, high energy
+```
+
+---
+
+### `analogous`
+
+The secondary, tertiary, and quaternary are placed **30-60 degrees away** from the primary on the same side of the hue wheel.
+
+```
+Primary:    H = 220 (ocean blue)
+Secondary:  H = 255 (blue-violet — 35 degrees clockwise)
+Tertiary:   H = 185 (teal — 35 degrees counterclockwise)
+Quaternary: H = 290 (violet — further clockwise)
+```
+
+**Visual effect:** The entire palette feels like variations of one color family. Cohesive, harmonious, sophisticated. No strong contrast between primary and secondary.
+
+**Best for:** Products with a strong single-color brand identity that want accent variety without disruption. Documentation sites, editorial content, tools where the palette should support content rather than compete with it.
+
+```ts
+generateTheme({ preset: 'ocean', colorHarmony: 'analogous' })
+// Blue + blue-violet + teal — all feel like "blue family"
+```
+
+---
+
+### `triadic`
+
+The secondary and tertiary are placed **120 and 240 degrees away** from the primary — three equidistant points on the hue wheel.
+
+```
+Primary:    H = 220 (ocean blue)
+Secondary:  H = 340 (rose — 120 degrees clockwise)
+Tertiary:   H = 100 (yellow-green — 240 degrees clockwise, or 120 counterclockwise)
+Quaternary: H = 265 (intermediate)
+```
+
+**Visual effect:** Three distinct, vibrant colors with no obvious dominant. Feels dynamic and diverse. Harder to control visually — requires deliberate restraint to avoid clashing.
+
+**Best for:** Data visualization (charts need distinct colors), creative platforms, and UIs where multiple equal-weight categories need differentiation.
+
+```ts
+generateTheme({ preset: 'ocean', colorHarmony: 'triadic' })
+// Blue + rose + yellow-green — distinct, vibrant, equal weight
+```
+
+---
+
+### `split-complementary`
+
+The secondary and tertiary are placed **150 and 210 degrees away** from the primary — flanking the complementary angle rather than landing on it exactly.
+
+```
+Primary:    H = 220 (ocean blue)
+Secondary:  H = 10  (warm red-orange — 150 degrees clockwise)
+Tertiary:   H = 70  (warm yellow — 150 degrees counterclockwise)
+Quaternary: H = 310 (intermediate)
+```
+
+**Visual effect:** High contrast like complementary, but softer. Secondary and tertiary are warm relatives of the true complement. Feels energetic but more approachable than a direct complementary.
+
+**Best for:** Products that want visual dynamism without the starkness of a direct complement. Startup marketing pages, consumer SaaS, apps where energy and approachability are both needed.
+
+```ts
+generateTheme({ preset: 'ocean', colorHarmony: 'split-complementary' })
+// Blue + red-orange + warm yellow — energetic but not jarring
+```
+
+---
+
+## What changes with each strategy
+
+Only the hue angles of secondary, tertiary, and quaternary change. Everything else stays the same:
+
+| What changes | What stays the same |
+| ------------ | ------------------- |
+| `secondary` hue | `primary` color |
+| `tertiary` hue | All `on*` colors (re-derived) |
+| `quaternary` hue | Spacing, radius, font sizes |
+| State colors for secondary/tertiary/quaternary | State colors for primary |
+| Accessibility checks for secondary/tertiary | Accessibility for primary/text/background |
+
+The `on*` colors for secondary, tertiary, and quaternary are always recomputed after the harmony algorithm runs — they are always correct for whatever accent color the strategy produces.
+
+---
+
+## How accents are used in practice
+
+Understanding which token to reach for in each situation:
+
+### `primary` — main actions
+
+```tsx
+// The button the user should click most often
+<Button style={{ background: colors.primary, color: colors.onPrimary }}>
+  Save changes
+</Button>
+
+// Active nav link
+<NavLink style={{ color: colors.primary }} />
+
+// Focus rings
+outline: `2px solid ${states.primary.focused}`
+```
+
+### `secondary` — supporting actions and accents
+
+```tsx
+// Secondary or cancel buttons
+<Button style={{ background: colors.secondary, color: colors.onSecondary }}>
+  Discard
+</Button>
+
+// Badges and tags for secondary categories
+<Tag style={{ background: colors.secondary, color: colors.onSecondary }}>
+  Beta
+</Tag>
+```
+
+### `tertiary` — highlights and selection
+
+```tsx
+// Selected row in a table
+<tr style={{ background: colors.tertiary + '22' }}>
+
+// Highlighted search result
+<mark style={{ background: colors.tertiary, color: colors.onTertiary }} />
+
+// Active chip in a filter group
+<Chip style={{ background: colors.tertiary, color: colors.onTertiary }}>
+  Last 30 days
+</Chip>
+```
+
+### `quaternary` — decorative and data visualization
+
+```tsx
+// Chart series 4 (primary handles series 1, secondary 2, tertiary 3)
+const chartColors = [
+  colors.primary,
+  colors.secondary,
+  colors.tertiary,
+  colors.quaternary,
+];
+
+// Decorative dividers or accents
+<div style={{ borderTop: `2px solid ${colors.quaternary}` }} />
+```
+
+---
+
+## Choosing a harmony strategy
+
+| Product type | Recommended strategy |
+| ------------ | -------------------- |
+| B2B SaaS, general web app | `complementary` (default) |
+| Documentation, editorial | `analogous` |
+| Data visualization, dashboards | `triadic` |
+| Consumer app, marketing | `split-complementary` |
+| Single-brand identity | `analogous` |
+| High-contrast feature emphasis | `complementary` |
+
+When in doubt, leave the default (`complementary`). It is the most visually stable choice and the one that reads most naturally when primary and secondary are used in parallel — such as primary for CTAs and secondary for category tags.
+
+---
+
+## Inspecting harmony output
+
+To see exactly what each strategy produces for your preset:
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const strategies = ['complementary', 'analogous', 'triadic', 'split-complementary'] as const;
+
+for (const colorHarmony of strategies) {
+  const theme = generateTheme({ preset: 'ocean', colorHarmony });
+  const { primary, secondary, tertiary, quaternary } = theme.light.colors;
+  console.log(colorHarmony, { primary, secondary, tertiary, quaternary });
+}
+```
+
+This gives you the four OKLCH values for each strategy side by side. Pick the one whose secondary and tertiary feel best in your UI context.
+
+---
+
+## A note on harmony and intent colors
+
+The harmony algorithm only affects `primary`, `secondary`, `tertiary`, and `quaternary`. It does **not** touch `danger`, `success`, `warning`, or `info`.
+
+Intent colors are hue-fixed by design:
+- `danger` — always red (~10-20 degrees)
+- `success` — always green (~140-160 degrees)
+- `warning` — always amber (~60-80 degrees)
+- `info` — always blue (~200-220 degrees)
+
+They are adjusted for lightness and chroma to harmonize with your primary, but the hue never drifts. A `danger` red that shifts to orange-red because your primary is orange would undermine the semantic meaning.
+
+The harmony strategy is about your brand expression. The intent colors are about universal meaning.
+
+Note: Most products never set `colorHarmony`. The default `'complementary'` works for the vast majority of use cases. If you find yourself tweaking accent colors and nothing feels right, try `'analogous'` — it produces the most cohesive, low-tension palette and is often the right choice for professional tools.
+
+---
+### Chapter 08 — Adjusting Themes
+Source: https://learn.esalt.net/salt-theme-gen/guide/08-adjusting-themes/
+
+## The 95% problem
+
+Presets and custom hex colors cover most cases well. But design is precise. A generated primary might be `oklch(0.55 0.18 220)` when your brand standard is `oklch(0.52 0.20 218)`. Close — but not exact.
+
+Without an escape hatch, your only options are:
+- Accept the generated value (compromise)
+- Use your exact hex as the primary input (then lose the curated preset relationships)
+- Maintain a separate override layer in CSS (defeats the purpose of a system)
+
+`adjustTheme()` is the escape hatch. It applies targeted overrides to an already-generated theme, producing a new theme object with your changes merged in.
+
+---
+
+## Basic usage
+
+```ts
+import { generateTheme, adjustTheme } from 'salt-theme-gen';
+
+const base = generateTheme({ preset: 'ocean' });
+
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: {
+      primary: 'oklch(0.52 0.20 218)',  // your exact value
+    },
+  },
+});
+```
+
+`adjusted` is a new `GeneratedTheme` object. The original `base` is not mutated. Every field you do not specify in the overrides comes through from `base` unchanged.
+
+---
+
+## What you can adjust
+
+`adjustTheme()` accepts a deep partial of `GeneratedTheme`. Any field at any depth can be overridden:
+
+```ts
+adjustTheme(base, {
+  light: {
+    colors: { ... },          // any SemanticColors field
+    states: {
+      primary: { hover: '...' },  // any specific state
+    },
+    surfaceElevation: { ... }, // any elevation level
+    spacing: { md: 14 },       // specific spacing step
+    radius: { pill: 9999 },    // specific radius step
+    fontSizes: { '3xl': 42 },  // specific font size step
+  },
+  dark: {
+    colors: { ... },           // dark mode overrides
+  },
+});
+```
+
+You only specify what you want to change. Everything else remains as generated.
+
+---
+
+## Common adjustment patterns
+
+### Fine-tuning the primary color
+
+The most common use case: the preset is right in character but the exact OKLCH value is off.
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: { primary: 'oklch(0.52 0.20 218)' },
+  },
+  dark: {
+    colors: { primary: 'oklch(0.68 0.20 218)' },
+  },
+});
+```
+
+Note that adjusting `primary` does **not** automatically recompute `onPrimary`, `states.primary`, or the accessibility report. If you change `primary` significantly, adjust the related tokens too:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: {
+      primary: 'oklch(0.52 0.20 218)',
+      onPrimary: 'oklch(0.99 0.005 218)',  // keep it readable
+    },
+    states: {
+      primary: {
+        hover:    'oklch(0.58 0.20 218)',
+        pressed:  'oklch(0.46 0.20 218)',
+        focused:  'oklch(0.62 0.20 218)',
+        disabled: 'oklch(0.72 0.06 218)',
+      },
+    },
+  },
+});
+```
+
+### Overriding the surface color
+
+Sometimes you want a warmer or cooler card background than what the preset generates:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: {
+      surface: 'oklch(0.97 0.008 60)',  // warm cream instead of cool white
+    },
+  },
+});
+```
+
+### Adjusting a single spacing step
+
+Your design calls for `md` spacing of 14px instead of the default 12px:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    spacing: { md: 14 },
+  },
+  dark: {
+    spacing: { md: 14 },  // scales are mode-independent, adjust both
+  },
+});
+```
+
+### Overriding the danger color
+
+Your product uses a specific red that is part of the brand:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: {
+      danger:   '#DC2626',              // exact brand red
+      onDanger: 'oklch(0.99 0.01 25)',  // near-white for legibility
+    },
+  },
+  dark: {
+    colors: {
+      danger:   '#EF4444',              // lighter for dark backgrounds
+      onDanger: 'oklch(0.10 0.02 25)',
+    },
+  },
+});
+```
+
+### Adding a brand-specific border radius
+
+Your design system specifies `6px` for inputs and `12px` for cards, but no other values:
+
+```ts
+const adjusted = adjustTheme(base, {
+  light: { radius: { sm: 6, md: 12 } },
+  dark:  { radius: { sm: 6, md: 12 } },
+});
+```
+
+---
+
+## Adjustments and the accessibility report
+
+`adjustTheme()` does **not** rerun the WCAG contrast checks. The `accessibility` field in the adjusted theme reflects the values from the base generation — not the adjusted colors.
+
+This is intentional: `adjustTheme()` is a targeted override tool, not a re-generation. If your overrides change contrast-critical colors, verify the adjusted pairs manually:
+
+```ts
+import { contrastRatio } from 'salt-theme-gen';
+
+const adjusted = adjustTheme(base, {
+  light: {
+    colors: { primary: 'oklch(0.52 0.20 218)' },
+  },
+});
+
+// Verify the adjusted primary yourself
+const ratio = contrastRatio(
+  adjusted.light.colors.primary,
+  adjusted.light.colors.background,
+);
+console.log(ratio); // { ratio: 5.4, level: 'AA' }
+```
+
+`contrastRatio()` accepts any two OKLCH, hex, or CSS color strings and returns the same `{ ratio, level }` shape as the accessibility report entries.
+
+---
+
+## Chaining adjustments
+
+`adjustTheme()` returns a new `GeneratedTheme`, so you can chain calls:
+
+```ts
+const base     = generateTheme({ preset: 'ocean' });
+const step1    = adjustTheme(base,  { light: { colors: { primary: '...' } } });
+const step2    = adjustTheme(step1, { light: { spacing: { md: 14 } } });
+const final    = adjustTheme(step2, { dark:  { colors: { background: '...' } } });
+```
+
+Each call is non-mutating. You can branch from any intermediate result:
+
+```ts
+const base      = generateTheme({ preset: 'ocean' });
+const brandRed  = adjustTheme(base, { light: { colors: { danger: '#DC2626' } } });
+const brandBlue = adjustTheme(base, { light: { colors: { danger: '#1D4ED8' } } });
+// base is unchanged — two variants from the same root
+```
+
+---
+
+## When to use adjustTheme vs regenerating
+
+| Situation | Use |
+| --------- | --- |
+| Exact brand primary that isn't a preset | `generateTheme({ primary: '#hex' })` |
+| Preset is right but one token is off | `adjustTheme()` |
+| Need to match a specific Figma color | `generateTheme({ primary: '#hex' })` |
+| Post-design-review tweaks to a generated theme | `adjustTheme()` |
+| A/B testing color variants | `adjustTheme()` from a shared base |
+| Complete rebrand | `generateTheme()` with new input |
+| Minor spacing adjustment | `adjustTheme()` |
+
+The mental model: **generate for broad decisions, adjust for precision**.
+
+---
+
+## Adjustments in a CSS variable pipeline
+
+If you are using the CSS variable approach (recommended for web), `adjustTheme()` fits naturally into the same pipeline:
+
+```ts
+import { generateTheme, adjustTheme } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+const base = generateTheme({ preset: 'ocean' });
+
+const theme = adjustTheme(base, {
+  light: {
+    colors: { primary: 'oklch(0.52 0.20 218)' },
+    spacing: { md: 14 },
+  },
+  dark: {
+    colors: { primary: 'oklch(0.68 0.20 218)' },
+    spacing: { md: 14 },
+  },
+});
+
+// The rest of your CSS generation pipeline is identical
+function modeToVars(mode: GeneratedThemeMode): string {
+  // ... same as Chapter 2
+}
+
+export const themeCSS = `
+:root { ${modeToVars(theme.light)} }
+@media (prefers-color-scheme: dark) { :root { ${modeToVars(theme.dark)} } }
+`.trim();
+```
+
+`adjustTheme()` returns the same `GeneratedTheme` shape. Nothing downstream needs to change.
+
+---
+
+## Preserving adjustments across preset changes
+
+If you want to build a system where the preset can change but certain overrides are always applied (for example, your brand always uses 14px as the `md` spacing), wrap the generation and adjustment together:
+
+```ts
+function buildTheme(preset: string) {
+  const base = generateTheme({ preset, spacing: 'default' });
+  return adjustTheme(base, {
+    light: { spacing: { md: 14 } },
+    dark:  { spacing: { md: 14 } },
+  });
+}
+
+const oceanTheme  = buildTheme('ocean');
+const forestTheme = buildTheme('forest');
+// Both always have md spacing = 14px, regardless of the preset default
+```
+
+This pattern is useful for teams that have non-negotiable brand constraints (a specific border radius, a specific spacing value from a design system) but want to explore multiple color presets.
+
+Note: Remember: `adjustTheme()` does not recompute derived tokens. If you override `primary`, also override `onPrimary` and the `states.primary` entries if the hue or lightness shift is significant. For small tweaks (1-2 OKLCH lightness units), the base-generated values usually remain correct.
+
+---
+### Chapter 09 — Comparing Themes
+Source: https://learn.esalt.net/salt-theme-gen/guide/09-comparing-themes/
+
+## Why you need a diff
+
+Theme changes are invisible by default. You swap a preset, regenerate variables, redeploy. The UI looks different. But which of the 80+ tokens actually changed? Did any accessibility checks drop from AAA to AA? Did the dark mode surface color shift in a way that breaks a component?
+
+Without a structured diff, the answer is "look at it and see" — which is not a design audit, it is a guessing game.
+
+`diffTheme()` produces a structured record of every token that changed between two generated themes, in both light and dark modes.
+
+---
+
+## Basic usage
+
+```ts
+import { generateTheme, diffTheme } from 'salt-theme-gen';
+
+const before = generateTheme({ preset: 'ocean' });
+const after  = generateTheme({ preset: 'forest' });
+
+const diff = diffTheme(before, after);
+```
+
+`diff` is an object describing every token that differs between `before` and `after`. Tokens that are identical do not appear in the diff.
+
+---
+
+## The diff output shape
+
+```ts
+interface ThemeDiff {
+  light: ModeDiff;
+  dark:  ModeDiff;
+}
+
+interface ModeDiff {
+  colors:          Record<string, TokenDiff>;
+  states:          Record<string, Record<string, TokenDiff>>;
+  surfaceElevation: Record<string, TokenDiff>;
+  spacing:         Record<string, TokenDiff>;
+  radius:          Record<string, TokenDiff>;
+  fontSizes:       Record<string, TokenDiff>;
+  accessibility:   Record<string, AccessibilityDiff>;
+}
+
+interface TokenDiff {
+  before: string | number;
+  after:  string | number;
+}
+
+interface AccessibilityDiff {
+  before: { ratio: number; level: string };
+  after:  { ratio: number; level: string };
+}
+```
+
+Only changed tokens appear. If `spacing.md` is `12` in both themes, it will not appear in `diff.light.spacing`.
+
+---
+
+## Reading a diff
+
+```ts
+const diff = diffTheme(before, after);
+
+// Which colors changed in light mode?
+console.log(Object.keys(diff.light.colors));
+// ['primary', 'secondary', 'tertiary', 'quaternary', 'background', 'surface', ...]
+
+// What did primary change from and to?
+console.log(diff.light.colors.primary);
+// { before: 'oklch(0.55 0.18 220)', after: 'oklch(0.50 0.15 145)' }
+
+// Did any accessibility levels change?
+console.log(diff.light.accessibility);
+// { primaryOnBackground: { before: { ratio: 5.2, level: 'AA' }, after: { ratio: 4.8, level: 'AA' } } }
+
+// Did spacing change at all?
+console.log(Object.keys(diff.light.spacing));
+// [] — no spacing changes between two color-only changes
+```
+
+---
+
+## Printing a human-readable report
+
+A quick utility to turn a diff into readable output:
+
+```ts
+import { generateTheme, diffTheme } from 'salt-theme-gen';
+
+function printDiff(diff: ReturnType<typeof diffTheme>) {
+  for (const mode of ['light', 'dark'] as const) {
+    const m = diff[mode];
+    console.log(`\n-- ${mode.toUpperCase()} MODE --`);
+
+    if (Object.keys(m.colors).length) {
+      console.log('\nColors:');
+      for (const [k, v] of Object.entries(m.colors))
+        console.log(`  ${k}: ${v.before} -> ${v.after}`);
+    }
+
+    if (Object.keys(m.accessibility).length) {
+      console.log('\nAccessibility:');
+      for (const [k, v] of Object.entries(m.accessibility))
+        console.log(`  ${k}: ${v.before.ratio.toFixed(1)} (${v.before.level}) -> ${v.after.ratio.toFixed(1)} (${v.after.level})`);
+    }
+
+    if (Object.keys(m.spacing).length) {
+      console.log('\nSpacing:');
+      for (const [k, v] of Object.entries(m.spacing))
+        console.log(`  ${k}: ${v.before}px -> ${v.after}px`);
+    }
+  }
+}
+
+const before = generateTheme({ preset: 'ocean' });
+const after  = generateTheme({ preset: 'forest' });
+printDiff(diffTheme(before, after));
+```
+
+Sample output:
+
+```
+-- LIGHT MODE --
+
+Colors:
+  primary:   oklch(0.55 0.18 220) -> oklch(0.50 0.15 145)
+  secondary: oklch(0.58 0.14 40)  -> oklch(0.55 0.12 310)
+  tertiary:  oklch(0.62 0.10 260) -> oklch(0.58 0.09 185)
+  background: oklch(0.99 0.005 220) -> oklch(0.99 0.005 145)
+  surface:    oklch(1.00 0.002 220) -> oklch(1.00 0.002 145)
+
+Accessibility:
+  primaryOnBackground: 5.2 (AA) -> 5.8 (AA)
+
+-- DARK MODE --
+
+Colors:
+  primary:   oklch(0.65 0.18 220) -> oklch(0.62 0.15 145)
+  background: oklch(0.12 0.01 220) -> oklch(0.12 0.01 145)
+```
+
+---
+
+## Use cases
+
+### Design review before deployment
+
+Generate the current production theme and the proposed new theme, diff them, and share the report with your designer:
+
+```ts
+// Current production
+const production = generateTheme({ preset: 'ocean' });
+
+// Proposed change
+const proposed = generateTheme({ preset: 'sapphire' });
+
+const diff = diffTheme(production, proposed);
+
+// Log or save to file for review
+```
+
+This answers "what exactly changes if we ship this?" before a single line of production code changes.
+
+---
+
+### A/B testing color variants
+
+Track which tokens differ between your A and B variants:
+
+```ts
+const variantA = generateTheme({ preset: 'ocean' });
+const variantB = generateTheme({ preset: 'peacock' });
+
+const diff = diffTheme(variantA, variantB);
+
+// If only primary and its derivatives differ, it's a clean A/B test
+// If background and surface also differ, it may affect layout perception
+const colorChanges = Object.keys(diff.light.colors);
+console.log(`${colorChanges.length} color tokens differ between variants`);
+```
+
+---
+
+### Verifying an adjustTheme() call
+
+After calling `adjustTheme()`, use `diffTheme()` to confirm only the tokens you intended to change actually changed:
+
+```ts
+import { generateTheme, adjustTheme, diffTheme } from 'salt-theme-gen';
+
+const base = generateTheme({ preset: 'ocean' });
+const adjusted = adjustTheme(base, {
+  light: { spacing: { md: 14 } },
+  dark:  { spacing: { md: 14 } },
+});
+
+const diff = diffTheme(base, adjusted);
+
+// Should only show spacing.md
+console.log(diff.light.spacing);
+// { md: { before: 12, after: 14 } }
+
+console.log(Object.keys(diff.light.colors));
+// [] — no color changes, as expected
+```
+
+This is a sanity check that your adjustment was surgical and didn't cause unexpected side effects.
+
+---
+
+### Accessibility regression check
+
+Check whether a theme change caused any contrast ratio to decrease:
+
+```ts
+const before = generateTheme({ preset: 'ocean' });
+const after  = generateTheme({ primary: '#1A6BB5' }); // custom color
+
+const diff = diffTheme(before, after);
+
+const regressions = Object.entries(diff.light.accessibility)
+  .filter(([, v]) => v.after.ratio < v.before.ratio)
+  .map(([k, v]) => ({
+    check: k,
+    before: v.before,
+    after: v.after,
+    dropped: (v.before.ratio - v.after.ratio).toFixed(2),
+  }));
+
+if (regressions.length) {
+  console.warn('Accessibility regressions detected:');
+  regressions.forEach(r =>
+    console.warn(`  ${r.check}: ${r.before.ratio} -> ${r.after.ratio} (-${r.dropped})`),
+  );
+}
+```
+
+Add this to your CI pipeline to catch accessibility regressions before they ship.
+
+---
+
+### Migration audit
+
+You are migrating from a manually maintained token file to a `salt-theme-gen` generated theme. Use `diffTheme()` to see how far apart the two systems are:
+
+```ts
+// Your current manually maintained values, expressed as an adjustTheme override
+const legacy = adjustTheme(generateTheme({ preset: 'ocean' }), {
+  light: {
+    colors: {
+      primary:    '#2563EB',  // your current hardcoded values
+      secondary:  '#7C3AED',
+      background: '#FFFFFF',
+      surface:    '#F9FAFB',
+      text:       '#111827',
+      muted:      '#6B7280',
+      border:     '#E5E7EB',
+    },
+  },
+});
+
+// The generated equivalent
+const generated = generateTheme({ primary: '#2563EB' });
+
+const diff = diffTheme(legacy, generated);
+console.log('Tokens that differ from your legacy values:', diff.light.colors);
+```
+
+This tells you exactly which tokens would change if you adopted the generated theme, letting you evaluate the migration impact before committing.
+
+---
+
+## Diffing only one mode
+
+If you only care about light mode changes (common in design reviews):
+
+```ts
+const diff = diffTheme(before, after);
+
+// Ignore dark mode entirely
+const lightChanges = diff.light;
+```
+
+The `diff` always includes both modes, but you can destructure only what you need.
+
+---
+
+## What diffTheme does not tell you
+
+- **Visual impact** — a change from `oklch(0.55 0.18 220)` to `oklch(0.54 0.18 220)` technically shows up in the diff, but the visual difference is imperceptible. Numeric diff size does not map directly to perceived change.
+- **Cause of change** — the diff shows what changed, not why. That context lives in your `generateTheme()` call.
+- **Component-level impact** — if `surface` changes, every card is affected. The diff cannot tell you which components use which tokens.
+
+Use the diff as a starting point for a review conversation, not as a complete impact analysis.
+
+Tip: Save diffs to version control: After each theme generation, serialize the diff against the previous version with `JSON.stringify(diff, null, 2)` and commit it alongside your theme file. Six months later, you'll have a complete audit trail of every token change and when it happened.
+
+---
+### Chapter 10 — Validation
+Source: https://learn.esalt.net/salt-theme-gen/guide/10-validation/
+
+## Why validation matters
+
+`generateTheme()` always produces a well-typed, correct `GeneratedTheme` object. That guarantee holds for the lifetime of that function call — at build time, on the server, in your CI pipeline.
+
+But themes do not always stay in memory. They get:
+
+- Serialized to JSON and stored in a database
+- Passed through an API endpoint
+- Saved to `localStorage` for offline use
+- Exported as config files and committed to a repo
+- Shared across microservices as theme contracts
+- Loaded from user-uploaded files
+
+At any of those boundaries, the type guarantee breaks. JSON has no schema enforcement. A database field can be null. An API consumer can send anything. A config file can be hand-edited incorrectly.
+
+`parseThemeJSON()` re-establishes the guarantee at ingestion points.
+
+---
+
+## Basic usage
+
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+
+const raw = JSON.parse(savedThemeString);
+const result = parseThemeJSON(raw);
+
+if (result.success) {
+  const theme = result.theme; // GeneratedTheme — fully typed and validated
+} else {
+  console.error(result.errors); // string[] — what failed validation
+}
+```
+
+`parseThemeJSON()` never throws. It returns a discriminated union:
+
+```ts
+type ParseResult =
+  | { success: true;  theme: GeneratedTheme }
+  | { success: false; errors: string[] };
+```
+
+Always check `result.success` before using the theme.
+
+---
+
+## What gets validated
+
+`parseThemeJSON()` checks every field in the `GeneratedTheme` structure:
+
+**Structural checks:**
+- `light` and `dark` keys exist and are objects
+- All seven mode fields are present (`colors`, `states`, `surfaceElevation`, `spacing`, `radius`, `fontSizes`, `accessibility`)
+- All 21 color tokens are present in `colors`
+- All 8 intents are present in `states`, each with all 4 state keys
+- All 4 elevation levels are present in `surfaceElevation`
+- All 6 spacing steps, 7 radius steps, 7 font size steps are present
+- All 18 accessibility entries are present
+
+**Value checks:**
+- Color values are valid CSS color strings (hex, oklch, rgb, hsl)
+- Spacing and radius values are positive numbers
+- Font size values are positive numbers
+- Accessibility ratio is a positive number
+- Accessibility level is `'AAA'`, `'AA'`, or `'FAIL'`
+
+---
+
+## The round-trip pattern
+
+The most common use: generate once, store, validate on load.
+
+**At build time or server startup:**
+```ts
+import { generateTheme } from 'salt-theme-gen';
+import fs from 'node:fs';
+
+const theme = generateTheme({ preset: 'ocean' });
+fs.writeFileSync('theme.json', JSON.stringify(theme, null, 2));
+```
+
+**At runtime, before using:**
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+import fs from 'node:fs';
+
+const raw = JSON.parse(fs.readFileSync('theme.json', 'utf8'));
+const result = parseThemeJSON(raw);
+
+if (!result.success) {
+  throw new Error(`Invalid theme.json:\n${result.errors.join('\n')}`);
+}
+
+export const theme = result.theme;
+```
+
+This pattern is safe across library version upgrades. If a new version of `salt-theme-gen` adds required fields, `parseThemeJSON()` will report which fields are missing — you re-generate and re-save.
+
+---
+
+## Validating themes from an API
+
+If your backend serves theme configuration to a frontend client:
+
+**API endpoint (server):**
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+app.get('/api/theme', (req, res) => {
+  const { preset = 'ocean' } = req.query;
+  const theme = generateTheme({ preset: String(preset) });
+  res.json(theme);
+});
+```
+
+**Client-side fetch with validation:**
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+
+async function fetchTheme(): Promise<GeneratedTheme> {
+  const response = await fetch('/api/theme?preset=ocean');
+  const raw = await response.json();
+
+  const result = parseThemeJSON(raw);
+  if (!result.success) {
+    throw new Error(`Theme API returned invalid data:\n${result.errors.join('\n')}`);
+  }
+
+  return result.theme;
+}
+```
+
+Without validation, a network error, a proxy mangling the response, or a server-side bug could silently return malformed data that crashes your component tree somewhere deep in a render.
+
+---
+
+## Validating user-provided themes
+
+If your product allows users to upload or configure custom themes:
+
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+
+function handleThemeUpload(file: File) {
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(e.target?.result as string);
+    } catch {
+      showError('Invalid JSON file.');
+      return;
+    }
+
+    const result = parseThemeJSON(raw);
+    if (!result.success) {
+      showError(`Theme file has ${result.errors.length} validation errors:\n${result.errors[0]}`);
+      return;
+    }
+
+    applyTheme(result.theme);
+  };
+
+  reader.readAsText(file);
+}
+```
+
+The `errors` array gives you user-facing messages. The first error is usually sufficient to show — listing all 18 missing fields when the file is completely wrong is not helpful.
+
+---
+
+## Validating themes in localStorage
+
+Storing the active theme in `localStorage` for instant load:
+
+```ts
+import { generateTheme, parseThemeJSON } from 'salt-theme-gen';
+import type { GeneratedTheme } from 'salt-theme-gen';
+
+const STORAGE_KEY = 'app-theme';
+
+function saveTheme(theme: GeneratedTheme): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(theme));
+}
+
+function loadTheme(): GeneratedTheme {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return generateTheme({ preset: 'ocean' }); // fallback
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return generateTheme({ preset: 'ocean' }); // corrupted JSON fallback
+  }
+
+  const result = parseThemeJSON(parsed);
+  if (!result.success) {
+    // Stale or incompatible theme — regenerate and overwrite
+    const fresh = generateTheme({ preset: 'ocean' });
+    saveTheme(fresh);
+    return fresh;
+  }
+
+  return result.theme;
+}
+```
+
+This handles three failure modes: missing key, corrupted JSON, and schema mismatch from a library upgrade — all without crashing.
+
+---
+
+## Using errors for debugging
+
+The `errors` array is human-readable. Each entry identifies the failing field path and what was expected:
+
+```ts
+const result = parseThemeJSON({ light: { colors: { primary: 123 } } });
+// result.success -> false
+// result.errors ->
+// [
+//   "light.colors.primary: expected a CSS color string, got number",
+//   "light.colors.secondary: required field missing",
+//   "light.colors.tertiary: required field missing",
+//   ... (all missing fields listed)
+//   "dark: required field missing",
+// ]
+```
+
+During development, log all errors. In production, log the count and the first message — the full list may be noisy.
+
+```ts
+if (!result.success) {
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Theme validation failed:', result.errors);
+  } else {
+    console.error(`Theme validation failed (${result.errors.length} errors): ${result.errors[0]}`);
+  }
+}
+```
+
+---
+
+## parseThemeJSON vs TypeScript types
+
+TypeScript types are erased at runtime. This code compiles but fails at runtime:
+
+```ts
+// Looks type-safe. Is not.
+const theme = JSON.parse(savedString) as GeneratedTheme;
+theme.light.colors.primary; // may throw if light is undefined
+```
+
+`parseThemeJSON()` is the runtime equivalent of the TypeScript type — it checks the shape at the moment you actually need the guarantee. Use both together:
+
+```ts
+const result = parseThemeJSON(raw);
+if (result.success) {
+  // result.theme is GeneratedTheme — TypeScript knows this AND it's verified at runtime
+  const primary = result.theme.light.colors.primary;
+}
+```
+
+---
+
+## Checking library compatibility
+
+`parseThemeJSON()` validates the current library's schema. If you serialized a theme with `salt-theme-gen@1.0.0` and now run `salt-theme-gen@1.2.0` which added new fields, validation will fail on the old data — which is the correct behavior.
+
+The fix is always: regenerate and re-save.
+
+```ts
+// After a library upgrade, re-generate all stored themes
+const themes = await db.query('SELECT id, config FROM saved_themes');
+for (const row of themes) {
+  const parsed = parseThemeJSON(JSON.parse(row.config));
+  if (!parsed.success) {
+    // Re-generate from the stored preset name
+    const fresh = generateTheme({ preset: row.preset });
+    await db.query('UPDATE saved_themes SET config = ? WHERE id = ?',
+      [JSON.stringify(fresh), row.id]);
+  }
+}
+```
+
+Run this as a migration script after each `salt-theme-gen` upgrade that changes the schema.
+
+Note: Zod users: If your project already uses Zod for validation, `parseThemeJSON()` is implemented with Zod internally. The errors it returns are the same messages Zod would produce. You do not need to write your own Zod schema for `GeneratedTheme` — `parseThemeJSON()` is the canonical validator.
+
+---
+### Chapter 11 — TypeScript Integration
+Source: https://learn.esalt.net/salt-theme-gen/guide/11-typescript/
+
+## All exported types
+
+`salt-theme-gen` ships a complete TypeScript type surface. Every type is exported from the package root:
+
+```ts
+import type {
+  // Top-level
+  GeneratedTheme,
+  GeneratedThemeMode,
+
+  // Color
+  SemanticColors,
+  IntentName,
+  StateName,
+  IntentStates,
+  IntentStateColors,
+
+  // Surfaces and scales
+  SurfaceElevation,
+  SpacingScale,
+  RadiusScale,
+  FontSizeScale,
+  SpacingKey,
+  RadiusKey,
+  FontSizeKey,
+
+  // Accessibility
+  AccessibilityReport,
+  AccessibilityEntry,
+
+  // Options
+  ThemeOptions,
+  PresetName,
+  ColorHarmony,
+  SpacingPreset,
+  RadiusPreset,
+  FontSizePreset,
+
+  // Diff and parse
+  ThemeDiff,
+  ModeDiff,
+  TokenDiff,
+  ParseResult,
+} from 'salt-theme-gen';
+```
+
+You rarely need all of these. The three you will use most are `GeneratedTheme`, `GeneratedThemeMode`, and `ThemeOptions`.
+
+---
+
+## Core types
+
+### GeneratedTheme
+
+The return type of `generateTheme()` and `adjustTheme()`:
+
+```ts
+interface GeneratedTheme {
+  light: GeneratedThemeMode;
+  dark:  GeneratedThemeMode;
+}
+```
+
+### GeneratedThemeMode
+
+One mode — light or dark. The shape of `theme.light` and `theme.dark`:
+
+```ts
+interface GeneratedThemeMode {
+  colors:           SemanticColors;
+  states:           IntentStates;
+  surfaceElevation: SurfaceElevation;
+  spacing:          SpacingScale;
+  radius:           RadiusScale;
+  fontSizes:        FontSizeScale;
+  accessibility:    AccessibilityReport;
+}
+```
+
+### SemanticColors
+
+All 21 color tokens as a typed record:
+
+```ts
+interface SemanticColors {
+  primary:     string;
+  secondary:   string;
+  tertiary:    string;
+  quaternary:  string;
+  background:  string;
+  surface:     string;
+  text:        string;
+  muted:       string;
+  border:      string;
+  danger:      string;
+  success:     string;
+  warning:     string;
+  info:        string;
+  onPrimary:   string;
+  onSecondary: string;
+  onTertiary:  string;
+  onQuaternary:string;
+  onDanger:    string;
+  onSuccess:   string;
+  onWarning:   string;
+  onInfo:      string;
+}
+```
+
+### IntentStates
+
+The 32 state colors as a nested record:
+
+```ts
+type IntentName = 'primary' | 'secondary' | 'tertiary' | 'quaternary'
+                | 'danger'  | 'success'   | 'warning'  | 'info';
+
+type StateName  = 'hover' | 'pressed' | 'focused' | 'disabled';
+
+type IntentStateColors = Record<StateName, string>;
+type IntentStates      = Record<IntentName, IntentStateColors>;
+```
+
+### ThemeOptions
+
+The input type for `generateTheme()`:
+
+```ts
+interface ThemeOptions {
+  preset?:        PresetName;
+  primary?:       string;          // hex color — alternative to preset
+  spacing?:       SpacingPreset;   // 'compact' | 'default' | 'spacious'
+  radius?:        RadiusPreset;    // 'none' | 'sm' | 'default' | 'lg' | 'pill'
+  fontSize?:      FontSizePreset;  // 'small' | 'default' | 'large'
+  colorHarmony?:  ColorHarmony;    // 'complementary' | 'analogous' | 'triadic' | 'split-complementary'
+  silent?:        boolean;         // suppress console.warn for auto-corrections
+}
+```
+
+`preset` and `primary` are mutually exclusive — passing both is a type error.
+
+### PresetName
+
+The union of all valid preset strings:
+
+```ts
+type PresetName =
+  | 'peacock' | 'ocean'     | 'forest'    | 'sunset'
+  | 'cherry-blossom'        | 'arctic'    | 'desert'
+  | 'lavender'| 'emerald'   | 'coral-reef'| 'midnight'
+  | 'autumn'  | 'rose-gold' | 'sapphire'  | 'mint'
+  | 'volcano' | 'twilight'  | 'honey'     | 'storm'
+  | 'aurora';
+```
+
+---
+
+## Typing theme consumers
+
+### Accepting a mode as a prop
+
+When a component receives a theme mode (light or dark), type it as `GeneratedThemeMode`:
+
+```ts
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+interface ButtonProps {
+  label:    string;
+  intent?:  'primary' | 'danger';
+  theme:    GeneratedThemeMode;
+}
+
+function Button({ label, intent = 'primary', theme }: ButtonProps) {
+  return (
+    <button style={{
+      backgroundColor: theme.colors[intent],
+      color:           theme.colors[`on${capitalize(intent)}`],
+      borderRadius:    `${theme.radius.md}px`,
+    }}>
+      {label}
+    </button>
+  );
+}
+```
+
+### A theme context
+
+Sharing the full theme through React context:
+
+```ts
+import { createContext, useContext } from 'react';
+import type { GeneratedTheme } from 'salt-theme-gen';
+
+const ThemeContext = createContext<GeneratedTheme | null>(null);
+
+function useTheme(): GeneratedTheme {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
+  return ctx;
+}
+
+// In a component
+function Card() {
+  const theme = useTheme();
+  const mode  = theme.light; // or derive from user preference
+
+  return (
+    <div style={{
+      background:   mode.surfaceElevation.card,
+      borderRadius: `${mode.radius.lg}px`,
+      padding:      `${mode.spacing.xl}px`,
+    }}>
+      ...
+    </div>
+  );
+}
+```
+
+---
+
+## Typing intent-based components
+
+Using `IntentName` to type intent-driven props:
+
+```ts
+import type { GeneratedThemeMode, IntentName } from 'salt-theme-gen';
+
+interface BadgeProps {
+  label:   string;
+  intent:  IntentName;
+  mode:    GeneratedThemeMode;
+}
+
+function Badge({ label, intent, mode }: BadgeProps) {
+  const bg    = mode.colors[intent];
+  const color = mode.colors[`on${intent.charAt(0).toUpperCase()}${intent.slice(1)}` as keyof typeof mode.colors];
+
+  return <span style={{ background: bg, color }}>{label}</span>;
+}
+
+// TypeScript enforces valid intents — no typos
+<Badge intent="danger" label="Error" mode={theme.light} />
+<Badge intent="success" label="Saved" mode={theme.light} />
+```
+
+---
+
+## Typing state-driven styles
+
+Using `StateName` to build accessible interactive styles:
+
+```ts
+import type { GeneratedThemeMode, IntentName, StateName } from 'salt-theme-gen';
+
+function getStateColor(
+  mode:   GeneratedThemeMode,
+  intent: IntentName,
+  state:  StateName,
+): string {
+  return mode.states[intent][state];
+}
+
+// Fully typed — TypeScript catches invalid state names
+getStateColor(theme.light, 'primary', 'hover');    // valid
+getStateColor(theme.light, 'danger',  'pressed');  // valid
+getStateColor(theme.light, 'primary', 'clicking'); // type error
+```
+
+---
+
+## Typing the accessibility report
+
+Iterating the report with full type safety:
+
+```ts
+import type { AccessibilityReport, AccessibilityEntry } from 'salt-theme-gen';
+
+function auditTheme(report: AccessibilityReport): void {
+  const entries = Object.entries(report) as [string, AccessibilityEntry][];
+
+  const failures = entries.filter(([, e]) => e.level === 'FAIL');
+  const aaa      = entries.filter(([, e]) => e.level === 'AAA');
+
+  console.log(`AAA: ${aaa.length}/18 checks`);
+  console.log(`Failures: ${failures.length}/18 checks`);
+
+  for (const [check, entry] of failures) {
+    console.warn(`FAIL: ${check} — ratio ${entry.ratio.toFixed(1)}`);
+  }
+}
+```
+
+---
+
+## Typing adjustTheme overrides
+
+`adjustTheme()` accepts a `DeepPartial<GeneratedTheme>`. You can write the override type explicitly when building override objects:
+
+```ts
+import type { GeneratedTheme } from 'salt-theme-gen';
+
+type DeepPartialTheme = {
+  light?: Partial<{
+    colors:          Partial<GeneratedTheme['light']['colors']>;
+    spacing:         Partial<GeneratedTheme['light']['spacing']>;
+    radius:          Partial<GeneratedTheme['light']['radius']>;
+    fontSizes:       Partial<GeneratedTheme['light']['fontSizes']>;
+    surfaceElevation:Partial<GeneratedTheme['light']['surfaceElevation']>;
+  }>;
+  dark?: Partial<{
+    colors:          Partial<GeneratedTheme['dark']['colors']>;
+    spacing:         Partial<GeneratedTheme['dark']['spacing']>;
+    // ...
+  }>;
+};
+
+// Build overrides separately, typed
+const brandOverrides: DeepPartialTheme = {
+  light: {
+    colors:  { primary: 'oklch(0.52 0.20 218)' },
+    spacing: { md: 14 },
+  },
+  dark: {
+    colors:  { primary: 'oklch(0.68 0.20 218)' },
+    spacing: { md: 14 },
+  },
+};
+```
+
+---
+
+## Using ParseResult
+
+After `parseThemeJSON()`, TypeScript narrows the type correctly:
+
+```ts
+import { parseThemeJSON } from 'salt-theme-gen';
+import type { ParseResult, GeneratedTheme } from 'salt-theme-gen';
+
+function loadTheme(raw: unknown): GeneratedTheme {
+  const result: ParseResult = parseThemeJSON(raw);
+
+  if (result.success) {
+    return result.theme; // GeneratedTheme — narrowed by TypeScript
+  }
+
+  throw new Error(result.errors.join('\n')); // string[] — narrowed by TypeScript
+}
+```
+
+The discriminated union means TypeScript knows `result.theme` only exists when `result.success === true`, and `result.errors` only exists when `result.success === false`. No casting needed.
+
+---
+
+## Strict mode patterns
+
+In a strict TypeScript project (`"strict": true` in `tsconfig.json`), a few patterns keep things clean:
+
+### Prefer `import type`
+
+```ts
+// Types are erased at compile time — always import as type
+import type { GeneratedTheme, GeneratedThemeMode } from 'salt-theme-gen';
+
+// Runtime functions — imported normally
+import { generateTheme, adjustTheme, diffTheme, parseThemeJSON } from 'salt-theme-gen';
+```
+
+### Narrow mode selection
+
+Rather than indexing `theme['light']` directly, a typed mode selector avoids string index errors:
+
+```ts
+type ThemeMode = 'light' | 'dark';
+
+function getMode(theme: GeneratedTheme, mode: ThemeMode): GeneratedThemeMode {
+  return theme[mode];
+}
+```
+
+### Exhaustive intent handling
+
+If you write a switch on `IntentName`, TypeScript can enforce exhaustiveness:
+
+```ts
+import type { IntentName } from 'salt-theme-gen';
+
+function intentLabel(intent: IntentName): string {
+  switch (intent) {
+    case 'primary':    return 'Primary';
+    case 'secondary':  return 'Secondary';
+    case 'tertiary':   return 'Tertiary';
+    case 'quaternary': return 'Quaternary';
+    case 'danger':     return 'Danger';
+    case 'success':    return 'Success';
+    case 'warning':    return 'Warning';
+    case 'info':       return 'Info';
+    default: {
+      const _exhaustive: never = intent;
+      throw new Error(`Unhandled intent: ${_exhaustive}`);
+    }
+  }
+}
+```
+
+If the library adds a new intent in a future version, this switch becomes a compile error — telling you exactly which call site needs updating.
+
+---
+
+## Module augmentation
+
+If you extend your theme with custom tokens (not recommended for most projects, but occasionally necessary), you can augment the types:
+
+```ts
+// types/salt-theme-gen.d.ts
+import 'salt-theme-gen';
+
+declare module 'salt-theme-gen' {
+  interface SemanticColors {
+    brand: string;       // custom token
+    accent: string;      // custom token
+  }
+}
+```
+
+After augmentation, `theme.light.colors.brand` is typed and autocompleted. Your custom tokens live in the same type as the generated ones.
+
+Note: augmenting the type does not add the token to `parseThemeJSON()` validation or `diffTheme()` tracking. For custom tokens you maintain those guarantees yourself.
+
+---
+
+## tsconfig recommendations
+
+For projects using `salt-theme-gen` with full strict type checking:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "moduleResolution": "bundler"
+  }
+}
+```
+
+`noUncheckedIndexedAccess` is the one that catches the most bugs with theme code — it forces you to handle the case where an object index might return `undefined`, which `Record<string, string>` lookups can do at runtime even when TypeScript says they can't.
+
+---
+
+## Completing the guide
+
+You now have the full picture:
+
+| Chapter | What you learned |
+| ------- | ---------------- |
+| 1 | The problem, OKLCH, and what one function call produces |
+| 2 | Install and first theme in 5 minutes |
+| 3 | Every field in GeneratedTheme — colors, states, scales, accessibility |
+| 4 | All 20 presets and custom hex input |
+| 5 | Spacing, radius, and font size scales — exact values and combinations |
+| 6 | The 18 WCAG checks, auto-correction, and accessible component patterns |
+| 7 | Color harmony strategies — how accents are derived |
+| 8 | adjustTheme() for post-generation precision |
+| 9 | diffTheme() for design audits and CI regression checks |
+| 10 | parseThemeJSON() for safe round-trips through storage and APIs |
+| **11** | **Full TypeScript type surface and strict patterns** |
+
+The **Integrations** section starts next — applying your theme in React, Next.js, Vue, Astro, SvelteKit, and every other platform. Each guide opens with the developer pain it solves and ends with a working StackBlitz demo.
+
+Tip: You built this site. Every color, spacing value, and radius on this page is a `salt-theme-gen` token from the Ocean preset. Open DevTools, inspect `:root`, and you'll see every variable generated by the same `generateTheme({ preset: 'ocean' })` call you've been reading about.
