@@ -50,8 +50,7 @@ Pair that with salt-theme-gen's CSS variable output (light mode as :root, dark m
 
 Total JavaScript for the toggle mechanism: 3 lines.
 
-The complete pattern is in this week's article:
-[ARTICLE LINK]
+The complete pattern is in this week's article: https://dev.to/hasansarwer/dark-mode-in-5-minutes-with-salt-theme-gen-no-flash-zero-extra-dependencies-2ohb
 
 Part 2 of 24 in the salt-theme-gen series.
 
