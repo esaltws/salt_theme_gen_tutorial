@@ -1,5 +1,5 @@
 ---
-title: WCAG Accessibility Built Into Your Design Tokens
+title: You finish the UI, run Lighthouse, and suddenly six color pairs fail WCAG AA
 published: false
 description: salt-theme-gen runs 18 WCAG 2.1 contrast ratio checks on every generated theme. Here's what it checks and how to use it in CI.
 tags: accessibility, css, webdev, a11y
@@ -18,42 +18,47 @@ const theme = generateTheme({ preset: 'ocean' });
 const { accessibility } = theme.light;
 ```
 
-Every check is a `{ ratio: number; aa: boolean; aaa: boolean }` object:
+Every check is a `{ ratio: number; level: 'AAA' | 'AA' | 'fail' }` object:
 
 ```ts
 accessibility.primaryOnBackground
-// { ratio: 4.82, aa: true, aaa: false }
+// { ratio: 4.51, level: 'AA' }
 
 accessibility.textOnBackground
-// { ratio: 12.1, aa: true, aaa: true }
+// { ratio: 18.4, level: 'AAA' }
 
 accessibility.onPrimaryOnPrimary
-// { ratio: 5.1, aa: true, aaa: false }
+// { ratio: 4.9, level: 'AA' }
 ```
 
-The 18 checks cover:
+18 checks + OKLCH auto-correction + CI-friendly report:
 
-**Text legibility** — the most common a11y failure:
+**Text legibility** (2):
+
 - `textOnBackground` — body text on page background
-- `textOnSurface` — body text on card/panel surfaces
-- `mutedOnBackground` — secondary text on page background
-- `mutedOnSurface` — secondary text on card surfaces
+- `textOnSurface` — body text on card/input surfaces
 
-**Interactive elements** — buttons, links, badges:
-- `primaryOnBackground` — primary color used as link/icon color
-- `primaryOnSurface` — primary color on card backgrounds
+**Brand colors on background** (4):
 
-**On-color text** — text inside colored buttons:
-- `onPrimaryOnPrimary` — the text that sits inside a primary button
-- `onDangerOnDanger` — text inside danger/error buttons
-- `onSuccessOnSuccess` — text inside success buttons
-- `onWarningOnWarning` — text inside warning buttons
+- `primaryOnBackground` — primary accent as text/icon on background
+- `secondaryOnBackground` — secondary accent as text/icon on background
+- `tertiaryOnBackground` — tertiary accent as text/icon on background
+- `quaternaryOnBackground` — quaternary accent as text/icon on background
 
-**Semantic colors as text** — danger/success/warning/info as standalone text:
-- `dangerOnBackground`, `dangerOnSurface`
-- `successOnBackground`, `successOnSurface`
-- `warningOnBackground`, `warningOnSurface`
-- `infoOnBackground`, `infoOnSurface`
+**On-color text — button/badge labels** (4):
+
+- `onPrimaryOnPrimary` — text inside a primary button
+- `onSecondaryOnSecondary` — text inside a secondary button
+- `onTertiaryOnTertiary` — text inside a tertiary button
+- `onQuaternaryOnQuaternary` — text inside a quaternary button
+
+**Semantic colors on background** (4):
+
+- `dangerOnBackground`, `successOnBackground`, `warningOnBackground`, `infoOnBackground`
+
+**On-semantic foregrounds** (4):
+
+- `onDangerOnDanger`, `onSuccessOnSuccess`, `onWarningOnWarning`, `onInfoOnInfo`
 
 All built-in presets pass WCAG AA for every check. Many pass AAA.
 
@@ -67,7 +72,7 @@ import { generateTheme } from 'salt-theme-gen';
 const theme = generateTheme({ preset: 'ocean' });
 
 const failures = Object.entries(theme.light.accessibility)
-  .filter(([, check]) => !check.aa)
+  .filter(([, check]) => check.level === 'fail')
   .map(([name, check]) => `${name}: ${check.ratio.toFixed(2)} (needs 4.5)`);
 
 if (failures.length > 0) {
@@ -96,11 +101,11 @@ Or add it as a pre-build step: if accessibility fails, the build fails.
 When you pass a hex color instead of a preset, `salt-theme-gen` still runs the checks:
 
 ```ts
-const theme = generateTheme({ preset: '#f59e0b' }); // amber
+const theme = generateTheme({ primary: '#f59e0b' }); // amber
 const { accessibility } = theme.light;
 
 // Check automatically
-if (!accessibility.primaryOnBackground.aa) {
+if (accessibility.primaryOnBackground.level === 'fail') {
   // amber on white fails — but the package already handled it:
   // OKLCH lightness was auto-adjusted to meet AA
 }
@@ -114,10 +119,10 @@ Dark mode needs its own accessibility verification — colors that pass in light
 
 ```ts
 const lightFailures = Object.entries(theme.light.accessibility)
-  .filter(([, c]) => !c.aa);
+  .filter(([, c]) => c.level === 'fail');
 
 const darkFailures = Object.entries(theme.dark.accessibility)
-  .filter(([, c]) => !c.aa);
+  .filter(([, c]) => c.level === 'fail');
 
 const allClear = lightFailures.length === 0 && darkFailures.length === 0;
 ```
@@ -145,11 +150,15 @@ Use this when you want to verify a color combination that isn't in the standard 
 
 ## The bottom line
 
-Accessibility in design tokens is a solved problem. Running 18 WCAG checks on every theme means:
+Color contrast in design tokens can be handled before components are built. Running 18 WCAG checks on every theme means:
 
 - A junior developer can change the preset and know whether it passes
 - CI catches contrast regressions before they ship
 - Dark mode is verified separately, not assumed to be fine
+
+Previous article: [Introducing salt-theme-gen — Generate a Complete Design System from One Color](https://dev.to/hasansarwer/introducing-salt-theme-gen-generate-a-complete-design-system-from-one-color-2a9j)
+
+Full documentation: [learn.esalt.net/salt-theme-gen](https://learn.esalt.net/salt-theme-gen/)
 
 Next in the series: [20 color presets — which one fits your project](https://learn.esalt.net/salt-theme-gen/guide/04-color-presets/)
 

@@ -1,6 +1,6 @@
 ---
 title: Dark Mode in 5 Minutes with salt-theme-gen (No Flash, Zero Extra Dependencies)
-published: false
+published: true
 description: Generate light and dark token sets from one call, inject as CSS variables, toggle with data-theme. Zero flash of wrong theme on load.
 tags: css, darkmode, webdev, javascript
 series: salt-theme-gen — Design Tokens for Every Framework
