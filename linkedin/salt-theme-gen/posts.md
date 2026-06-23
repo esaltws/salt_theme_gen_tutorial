@@ -60,6 +60,8 @@ Part 2 of 24 in the salt-theme-gen series.
 
 ## Post 03 — WCAG Accessibility Built Into Your Tokens
 
+[📎 Attach image: articles/salt-theme-gen/covers/03-cover.svg]
+
 Most teams discover accessibility failures after they ship.
 
 A tool runs on the deployed site and flags 12 low-contrast text/background combinations. Now you're backtracking through component styles to fix values that were baked in months ago.
@@ -80,13 +82,15 @@ if (failures.length > 0) process.exit(1);
 Full details:
 [ARTICLE LINK]
 
-Part 3 of 24 in the salt-theme-gen series.
+How does your team currently handle WCAG contrast checks — CI, manual audit, or discovered after shipping?
 
 #accessibility #wcag #a11y #webdev #css
 
 ---
 
 ## Post 04 — 20 Color Presets, Zero Color Theory Required
+
+[📎 Attach image: articles/salt-theme-gen/covers/04-cover.svg]
 
 The hardest part of starting a new project isn't the code. It's the first color decision.
 
@@ -109,13 +113,15 @@ Your hex becomes the primary. The rest of the 21-color system derives from it au
 The complete preset guide with all 20 options:
 [ARTICLE LINK]
 
-Part 4 of 24 in the salt-theme-gen series.
+Which preset fits your current project best — or are you working from a brand hex?
 
 #design #webdev #css #frontend #ux
 
 ---
 
 ## Post 05 — Spacing, Radius, and Typography in One Argument
+
+[📎 Attach image: articles/salt-theme-gen/covers/05-cover.svg]
 
 Color gets all the attention in design systems. But the personality of a UI comes from its scale.
 
@@ -138,13 +144,15 @@ Change the combination and every spacing/radius/font value across the entire cod
 The full scale reference with exact pixel values:
 [ARTICLE LINK]
 
-Part 5 of 24 in the salt-theme-gen series.
+Which combination fits your current product — and does your team have a name for the personality you're going for?
 
 #design #css #webdev #ux #frontend
 
 ---
 
 ## Post 06 — salt-theme-gen with React
+
+[📎 Attach image: articles/salt-theme-gen/covers/06-cover.svg]
 
 Most React theming setups I've seen have the same problem:
 
@@ -161,13 +169,15 @@ After that, every component uses var(--color-primary), var(--space-md), var(--ra
 The complete setup with ThemeContext, toggle component, and FOUC prevention:
 [ARTICLE LINK]
 
-Part 6 of 24 in the salt-theme-gen series.
+What's your current React theming setup — CSS variables, styled-components, a context object, or something else?
 
 #react #javascript #typescript #webdev #css
 
 ---
 
 ## Post 07 — salt-theme-gen with Next.js App Router
+
+[📎 Attach image: articles/salt-theme-gen/covers/07-cover.svg]
 
 Next.js App Router adds a wrinkle to theming: the root layout renders on the server, but localStorage is client-only.
 
@@ -185,13 +195,15 @@ The CSS is in the HTML on the very first byte from the server. The script restor
 Full setup with ThemeProvider Client Component and Tailwind integration:
 [ARTICLE LINK]
 
-Part 7 of 24 in the salt-theme-gen series.
+Have you hit the hydration mismatch warning from data-theme in Next.js App Router? What was your fix?
 
 #nextjs #react #typescript #webdev #css
 
 ---
 
 ## Post 08 — salt-theme-gen with Vue 3
+
+[📎 Attach image: articles/salt-theme-gen/covers/08-cover.svg]
 
 Vue 3's Composition API maps cleanly to the salt-theme-gen pattern.
 
@@ -215,13 +227,15 @@ If you already use Pinia, there's a store version too. But you probably don't ne
 Full setup with provide/inject for deep component access:
 [ARTICLE LINK]
 
-Part 8 of 24 in the salt-theme-gen series.
+Pinia for theme state or a module-level ref — which do you prefer in Vue 3, and why?
 
 #vue #vuejs #javascript #webdev #css
 
 ---
 
 ## Post 09 — salt-theme-gen with SvelteKit
+
+[📎 Attach image: articles/salt-theme-gen/covers/09-cover.svg]
 
 Two ways to use salt-theme-gen in SvelteKit:
 
@@ -238,13 +252,15 @@ The store's subscribe method updates data-theme on document.documentElement when
 Full implementation with both approaches:
 [ARTICLE LINK]
 
-Part 9 of 24 in the salt-theme-gen series.
+Static CSS at build time or dynamic per-request — which fits your SvelteKit architecture better?
 
 #svelte #sveltekit #webdev #javascript #css
 
 ---
 
 ## Post 10 — salt-theme-gen with Angular
+
+[📎 Attach image: articles/salt-theme-gen/covers/10-cover.svg]
 
 Angular's dependency injection makes ThemeService the natural home for salt-theme-gen.
 
@@ -268,13 +284,15 @@ CSS variables work fine through ViewEncapsulation.Emulated. No ::ng-deep needed 
 Full setup with Angular signals:
 [ARTICLE LINK]
 
-Part 10 of 24 in the salt-theme-gen series.
+Using Angular signals in your services yet? What's been your experience migrating from BehaviorSubject?
 
 #angular #typescript #webdev #javascript #css
 
 ---
 
 ## Post 11 — salt-theme-gen with Tailwind CSS
+
+[📎 Attach image: articles/salt-theme-gen/covers/11-cover.svg]
 
 Tailwind and salt-theme-gen solve different problems. They work better together.
 
@@ -297,13 +315,15 @@ The only Tailwind arbitrary values left are things outside the token system — 
 Full config with spacing, radius, and font size mappings:
 [ARTICLE LINK]
 
-Part 11 of 24 in the salt-theme-gen series.
+How many arbitrary values like bg-[#hex] are currently in your Tailwind codebase? Have you ever done an audit?
 
 #tailwind #tailwindcss #webdev #css #frontend
 
 ---
 
 ## Post 12 — salt-theme-gen with React Native
+
+[📎 Attach image: articles/salt-theme-gen/covers/12-cover.svg]
 
 React Native has no CSS cascade, no var(), no :root.
 
@@ -327,13 +347,15 @@ The useMemo([mode]) is important — mode is a new object reference on theme tog
 The complete ThemeContext with AsyncStorage persistence and OS preference sync:
 [ARTICLE LINK]
 
-Part 12 of 24 in the salt-theme-gen series.
+How are you currently managing design tokens in React Native — typed JS objects, a design system library, or still hardcoded values?
 
 #reactnative #react #mobile #javascript #typescript
 
 ---
 
 ## Post 13 — salt-theme-gen with Expo
+
+[📎 Attach image: articles/salt-theme-gen/covers/13-cover.svg]
 
 Expo has three theming-specific needs that bare React Native doesn't:
 
@@ -361,13 +383,15 @@ Works in Expo Go. Works with EAS Build. No native modules, no custom development
 Full implementation with Expo Router and app.json config:
 [ARTICLE LINK]
 
-Part 13 of 24 in the salt-theme-gen series.
+Have you hit either of these Expo dark mode bugs — the native background flash or useColorScheme() always returning null? Both are easy to miss because they don't throw errors.
 
 #expo #reactnative #mobile #javascript #typescript
 
 ---
 
 ## Post 14 — salt-theme-gen with Astro
+
+[📎 Attach image: articles/salt-theme-gen/covers/14-cover.svg]
 
 Astro is the best target for salt-theme-gen. Here's why:
 
@@ -390,13 +414,15 @@ One line. Fixes everything.
 Full setup including island prop-passing and the is:inline toggle script:
 [ARTICLE LINK]
 
-Part 14 of 24 in the salt-theme-gen series.
+Using Astro for your current project? The zero-JS approach to theming is one of the most underrated things about the framework.
 
 #astro #webdev #javascript #css #frontend
 
 ---
 
 ## Post 15 — salt-theme-gen with Remix
+
+[📎 Attach image: articles/salt-theme-gen/covers/15-cover.svg]
 
 Remix is the only framework where you can have true zero-FOUC dark mode.
 
@@ -416,13 +442,15 @@ The toggle doesn't even need JavaScript. It's a plain HTML form with useFetcher 
 FOUC comparison vs the localStorage approach:
 [ARTICLE LINK]
 
-Part 15 of 24 in the salt-theme-gen series.
+Cookie-based or localStorage dark mode — which approach does your team use, and has the flash ever been a real user complaint?
 
 #remix #react #webdev #javascript #css
 
 ---
 
 ## Post 16 — salt-theme-gen with CSS-in-JS
+
+[📎 Attach image: articles/salt-theme-gen/covers/16-cover.svg]
 
 styled-components, Emotion, and vanilla-extract all accept a theme object through ThemeProvider.
 
@@ -447,13 +475,15 @@ Emotion works the same way. vanilla-extract needs a createThemeContract — more
 All three patterns with comparison:
 [ARTICLE LINK]
 
-Part 16 of 24 in the salt-theme-gen series.
+Still using styled-components or Emotion in your projects? Curious how teams are approaching CSS-in-JS now vs CSS variables.
 
 #css #javascript #react #webdev #typescript
 
 ---
 
 ## Post 17 — salt-theme-gen with Storybook
+
+[📎 Attach image: articles/salt-theme-gen/covers/17-cover.svg]
 
 The most common Storybook problem: components look right in the app but wrong in stories.
 
@@ -480,13 +510,15 @@ Bonus: if you use Chromatic, you get both light and dark visual regression captu
 Full setup with token showcase story:
 [ARTICLE LINK]
 
-Part 17 of 24 in the salt-theme-gen series.
+Do your Storybook stories currently see the same design tokens as your app? This gap trips up more teams than you'd think.
 
 #storybook #webdev #css #react #designsystem
 
 ---
 
 ## Post 18 — salt-theme-gen with Sass/SCSS
+
+[📎 Attach image: articles/salt-theme-gen/covers/18-cover.svg]
 
 Sass and salt-theme-gen don't conflict. They complement each other.
 
@@ -510,13 +542,15 @@ Sass maps work too — great for utility class generation with @each.
 Both approaches with Vite additionalData config:
 [ARTICLE LINK]
 
-Part 18 of 24 in the salt-theme-gen series.
+Still writing Sass in your projects, or have you moved fully to CSS custom properties? Curious where teams are now.
 
 #sass #css #webdev #frontend #javascript
 
 ---
 
 ## Post 19 — adjustTheme(): Override Without Regenerating
+
+[📎 Attach image: articles/salt-theme-gen/covers/19-cover.svg]
 
 generateTheme() gets you 90% of the way there.
 
@@ -541,13 +575,15 @@ You can also chain adjustments or branch from the same base — useful for A/B t
 6 common patterns with before/after examples:
 [ARTICLE LINK]
 
-Part 19 of 24 in the salt-theme-gen series.
+Have you ever had to override a generated token to match an exact brand color? What was the situation?
 
 #css #designsystem #javascript #typescript #webdev
 
 ---
 
 ## Post 20 — diffTheme(): See Exactly What Changed
+
+[📎 Attach image: articles/salt-theme-gen/covers/20-cover.svg]
 
 Design system changes often affect more than you intend.
 
@@ -571,13 +607,15 @@ Pair diffTheme() in CI with Chromatic or Percy: detect token changes with diffTh
 5 patterns with code:
 [ARTICLE LINK]
 
-Part 20 of 24 in the salt-theme-gen series.
+How does your team currently track what changed between design system versions — changelog, visual diff tool, or manual review?
 
 #css #designsystem #testing #webdev #javascript
 
 ---
 
 ## Post 21 — parseThemeJSON(): Runtime Theme Validation
+
+[📎 Attach image: articles/salt-theme-gen/covers/21-cover.svg]
 
 TypeScript catches type errors at compile time.
 
@@ -602,13 +640,15 @@ The localStorage pattern with fallback to default is especially useful — if th
 All five patterns:
 [ARTICLE LINK]
 
-Part 21 of 24 in the salt-theme-gen series.
+Where do you draw the line between TypeScript types and runtime validation in your projects? Curious how different teams approach this.
 
 #typescript #javascript #webdev #designsystem #frontend
 
 ---
 
 ## Post 22 — TypeScript-first Design Tokens
+
+[📎 Attach image: articles/salt-theme-gen/covers/22-cover.svg]
 
 salt-theme-gen ships full TypeScript types — no @types package, no casting, no any.
 
@@ -641,13 +681,15 @@ The tsconfig setting I always add: "noUncheckedIndexedAccess": true. It forces y
 Complete type reference:
 [ARTICLE LINK]
 
-Part 22 of 24 in the salt-theme-gen series.
+What TypeScript strict settings does your project use? noUncheckedIndexedAccess is the one I'd add to every tsconfig first.
 
 #typescript #webdev #javascript #designsystem #css
 
 ---
 
 ## Post 23 — Using salt-theme-gen with Claude, Cursor, and v0.dev
+
+[📎 Attach image: articles/salt-theme-gen/covers/23-cover.svg]
 
 AI coding assistants are good at pattern-following.
 
@@ -674,13 +716,15 @@ With that context, Claude Code, Cursor, and ChatGPT all produce correct integrat
 The full prompt library (generic + per-framework + Cursor rules):
 [ARTICLE LINK]
 
-Part 23 of 24 in the salt-theme-gen series.
+What's the most wrong thing an AI assistant has generated for your UI code? The invented API names are always impressive.
 
 #ai #claude #cursor #webdev #javascript
 
 ---
 
 ## Post 24 — salt-theme-gen with Flutter: Build-time Token Bridge
+
+[📎 Attach image: articles/salt-theme-gen/covers/24-cover.svg]
 
 Flutter doesn't run JavaScript.
 
@@ -709,6 +753,6 @@ The shared theme-config.json pattern keeps both in sync when you change presets.
 Full bridge script and Flutter ThemeData setup:
 [ARTICLE LINK]
 
-Part 24 of 24 in the salt-theme-gen series.
+Building both a web app and a Flutter app? How are you keeping design tokens in sync across platforms — or are you maintaining them separately?
 
 #flutter #dart #mobile #javascript #designsystem
