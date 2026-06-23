@@ -30,24 +30,22 @@ At any of those boundaries, the type guarantee breaks. JSON has no schema enforc
 import { parseThemeJSON } from 'salt-theme-gen';
 
 const raw = JSON.parse(savedThemeString);
-const result = parseThemeJSON(raw);
 
-if (result.success) {
-  const theme = result.theme; // GeneratedTheme — fully typed and validated
-} else {
-  console.error(result.errors); // string[] — what failed validation
+try {
+  const theme = parseThemeJSON(raw); // GeneratedTheme — validated
+  // theme is fully typed and safe to use
+} catch (err) {
+  console.error('Invalid theme data:', err.message);
 }
 ```
 
-`parseThemeJSON()` never throws. It returns a discriminated union:
+`parseThemeJSON()` returns `GeneratedTheme` directly or throws an error if the data is invalid:
 
 ```ts
-type ParseResult =
-  | { success: true;  theme: GeneratedTheme }
-  | { success: false; errors: string[] };
+// parseThemeJSON returns GeneratedTheme directly or throws
+// Return type: GeneratedTheme
+// On invalid input: throws an Error with a descriptive message
 ```
-
-Always check `result.success` before using the theme.
 
 ---
 
@@ -61,7 +59,7 @@ Always check `result.success` before using the theme.
 - All 21 color tokens are present in `colors`
 - All 8 intents are present in `states`, each with all 4 state keys
 - All 4 elevation levels are present in `surfaceElevation`
-- All 6 spacing steps, 7 radius steps, 7 font size steps are present
+- All 7 spacing steps, 7 radius steps, 7 font size steps are present
 - All 18 accessibility entries are present
 
 **Value checks:**
@@ -69,7 +67,7 @@ Always check `result.success` before using the theme.
 - Spacing and radius values are positive numbers
 - Font size values are positive numbers
 - Accessibility ratio is a positive number
-- Accessibility level is `'AAA'`, `'AA'`, or `'FAIL'`
+- Accessibility level is `'AAA'`, `'AA'`, or `'fail'`
 
 ---
 
@@ -92,13 +90,13 @@ import { parseThemeJSON } from 'salt-theme-gen';
 import fs from 'node:fs';
 
 const raw = JSON.parse(fs.readFileSync('theme.json', 'utf8'));
-const result = parseThemeJSON(raw);
-
-if (!result.success) {
-  throw new Error(`Invalid theme.json:\n${result.errors.join('\n')}`);
+let theme: GeneratedTheme;
+try {
+  theme = parseThemeJSON(raw);
+} catch (err) {
+  throw new Error(`Invalid theme.json: ${err.message}`);
 }
-
-export const theme = result.theme;
+export { theme };
 ```
 
 This pattern is safe across library version upgrades. If a new version of `salt-theme-gen` adds required fields, `parseThemeJSON()` will report which fields are missing — you re-generate and re-save.
@@ -128,12 +126,11 @@ async function fetchTheme(): Promise<GeneratedTheme> {
   const response = await fetch('/api/theme?preset=ocean');
   const raw = await response.json();
 
-  const result = parseThemeJSON(raw);
-  if (!result.success) {
-    throw new Error(`Theme API returned invalid data:\n${result.errors.join('\n')}`);
+  try {
+    return parseThemeJSON(raw);
+  } catch (err) {
+    throw new Error(`Theme API returned invalid data: ${err.message}`);
   }
-
-  return result.theme;
 }
 ```
 
@@ -160,13 +157,12 @@ function handleThemeUpload(file: File) {
       return;
     }
 
-    const result = parseThemeJSON(raw);
-    if (!result.success) {
-      showError(`Theme file has ${result.errors.length} validation errors:\n${result.errors[0]}`);
-      return;
+    try {
+      const theme = parseThemeJSON(raw);
+      applyTheme(theme);
+    } catch (err) {
+      showError(`Invalid theme file: ${err.message}`);
     }
-
-    applyTheme(result.theme);
   };
 
   reader.readAsText(file);
@@ -202,15 +198,14 @@ function loadTheme(): GeneratedTheme {
     return generateTheme({ preset: 'ocean' }); // corrupted JSON fallback
   }
 
-  const result = parseThemeJSON(parsed);
-  if (!result.success) {
+  try {
+    return parseThemeJSON(parsed);
+  } catch {
     // Stale or incompatible theme — regenerate and overwrite
     const fresh = generateTheme({ preset: 'ocean' });
     saveTheme(fresh);
     return fresh;
   }
-
-  return result.theme;
 }
 ```
 
@@ -220,30 +215,25 @@ This handles three failure modes: missing key, corrupted JSON, and schema mismat
 
 ## Using errors for debugging
 
-The `errors` array is human-readable. Each entry identifies the failing field path and what was expected:
+The thrown error message is human-readable and identifies the failing field path and what was expected:
 
 ```ts
-const result = parseThemeJSON({ light: { colors: { primary: 123 } } });
-// result.success → false
-// result.errors →
-// [
-//   "light.colors.primary: expected a CSS color string, got number",
-//   "light.colors.secondary: required field missing",
-//   "light.colors.tertiary: required field missing",
-//   ... (all missing fields listed)
-//   "dark: required field missing",
-// ]
+try {
+  parseThemeJSON({ light: { colors: { primary: 123 } } });
+} catch (err) {
+  console.error(err.message);
+  // "theme: light.colors.primary: expected a CSS color string, got number"
+}
 ```
 
-During development, log all errors. In production, log the count and the first message — the full list may be noisy.
+During development, log the full error message. In production, log a summary and the message from the caught error.
 
 ```ts
-if (!result.success) {
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Theme validation failed:', result.errors);
-  } else {
-    console.error(`Theme validation failed (${result.errors.length} errors): ${result.errors[0]}`);
-  }
+try {
+  const theme = parseThemeJSON(raw);
+  // use theme
+} catch (err) {
+  console.error('Theme validation failed:', err.message);
 }
 ```
 
@@ -262,10 +252,11 @@ theme.light.colors.primary; // may throw if light is undefined
 `parseThemeJSON()` is the runtime equivalent of the TypeScript type — it checks the shape at the moment you actually need the guarantee. Use both together:
 
 ```ts
-const result = parseThemeJSON(raw);
-if (result.success) {
-  // result.theme is GeneratedTheme — TypeScript knows this AND it's verified at runtime
-  const primary = result.theme.light.colors.primary;
+import { parseThemeJSON } from 'salt-theme-gen';
+import type { GeneratedTheme } from 'salt-theme-gen';
+
+function loadTheme(raw: unknown): GeneratedTheme {
+  return parseThemeJSON(raw); // throws if invalid — let the caller handle the error
 }
 ```
 
@@ -281,8 +272,9 @@ The fix is always: regenerate and re-save.
 // After a library upgrade, re-generate all stored themes
 const themes = await db.query('SELECT id, config FROM saved_themes');
 for (const row of themes) {
-  const parsed = parseThemeJSON(JSON.parse(row.config));
-  if (!parsed.success) {
+  try {
+    parseThemeJSON(JSON.parse(row.config));
+  } catch {
     // Re-generate from the stored preset name
     const fresh = generateTheme({ preset: row.preset });
     await db.query('UPDATE saved_themes SET config = ? WHERE id = ?',

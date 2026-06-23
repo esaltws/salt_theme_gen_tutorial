@@ -32,20 +32,20 @@ Each is derived from `primary` by rotating the hue angle in OKLCH. The lightness
 
 ## Color harmony strategies
 
-The `colorHarmony` option controls how secondary, tertiary, and quaternary hue angles are chosen relative to primary:
+The `harmony` option controls how secondary, tertiary, and quaternary hue angles are chosen relative to primary:
 
 ```ts
 generateTheme({
   preset: 'ocean',
-  colorHarmony: 'complementary', // default
+  harmony: 'analogous', // default
 })
 ```
 
-Available strategies: `'complementary'` | `'analogous'` | `'triadic'` | `'split-complementary'`
+Available strategies: `'analogous'` | `'complementary'` | `'triadic'` | `'split-complementary'` | `'tetradic'` | `'monochromatic'`
 
 ---
 
-### `complementary` (default)
+### `complementary`
 
 The secondary color sits **180° across the hue wheel** from the primary. Tertiary and quaternary are placed at intermediate angles between them.
 
@@ -61,13 +61,13 @@ Quaternary: H = 340° (further around toward secondary)
 **Best for:** Products that need a strong visual hierarchy, call-to-action contrast, or a bold visual identity. Primary is "business," secondary is "accent."
 
 ```ts
-generateTheme({ preset: 'ocean', colorHarmony: 'complementary' })
+generateTheme({ preset: 'ocean', harmony: 'complementary' })
 // Blue primary + amber secondary — high contrast, high energy
 ```
 
 ---
 
-### `analogous`
+### `analogous` (default)
 
 The secondary, tertiary, and quaternary are placed **30°–60° away** from the primary on the same side of the hue wheel.
 
@@ -83,7 +83,7 @@ Quaternary: H = 290° (violet — further clockwise)
 **Best for:** Products with a strong single-color brand identity that want accent variety without disruption. Documentation sites, editorial content, tools where the palette should support content rather than compete with it.
 
 ```ts
-generateTheme({ preset: 'ocean', colorHarmony: 'analogous' })
+generateTheme({ preset: 'ocean', harmony: 'analogous' })
 // Blue + blue-violet + teal — all feel like "blue family"
 ```
 
@@ -105,7 +105,7 @@ Quaternary: H = 265° (intermediate)
 **Best for:** Data visualization (charts need distinct colors), creative platforms, and UIs where multiple equal-weight categories need differentiation.
 
 ```ts
-generateTheme({ preset: 'ocean', colorHarmony: 'triadic' })
+generateTheme({ preset: 'ocean', harmony: 'triadic' })
 // Blue + rose + yellow-green — distinct, vibrant, equal weight
 ```
 
@@ -127,7 +127,7 @@ Quaternary: H = 310° (intermediate)
 **Best for:** Products that want visual dynamism without the starkness of a direct complement. Startup marketing pages, consumer SaaS, apps where energy and approachability are both needed.
 
 ```ts
-generateTheme({ preset: 'ocean', colorHarmony: 'split-complementary' })
+generateTheme({ preset: 'ocean', harmony: 'split-complementary' })
 // Blue + red-orange + warm yellow — energetic but not jarring
 ```
 
@@ -222,14 +222,15 @@ const chartColors = [
 
 | Product type | Recommended strategy |
 | ------------ | -------------------- |
-| B2B SaaS, general web app | `complementary` (default) |
+| B2B SaaS, general web app | `analogous` (default) |
 | Documentation, editorial | `analogous` |
 | Data visualization, dashboards | `triadic` |
 | Consumer app, marketing | `split-complementary` |
-| Single-brand identity | `analogous` |
+| Single-brand identity | `monochromatic` |
 | High-contrast feature emphasis | `complementary` |
+| Four-category differentiation | `tetradic` |
 
-When in doubt, leave the default (`complementary`). It is the most visually stable choice and the one that reads most naturally when primary and secondary are used in parallel — such as primary for CTAs and secondary for category tags.
+When in doubt, leave the default (`analogous`). It is the most visually stable choice and the one that reads most naturally when primary and secondary are used in parallel — such as primary for CTAs and secondary for category tags. All six strategies (`analogous`, `complementary`, `triadic`, `split-complementary`, `tetradic`, `monochromatic`) are available.
 
 ---
 
@@ -240,12 +241,12 @@ To see exactly what each strategy produces for your preset:
 ```ts
 import { generateTheme } from 'salt-theme-gen';
 
-const strategies = ['complementary', 'analogous', 'triadic', 'split-complementary'] as const;
+const strategies = ['analogous', 'complementary', 'triadic', 'split-complementary', 'tetradic', 'monochromatic'] as const;
 
-for (const colorHarmony of strategies) {
-  const theme = generateTheme({ preset: 'ocean', colorHarmony });
+for (const harmony of strategies) {
+  const theme = generateTheme({ preset: 'ocean', harmony });
   const { primary, secondary, tertiary, quaternary } = theme.light.colors;
-  console.log(colorHarmony, { primary, secondary, tertiary, quaternary });
+  console.log(harmony, { primary, secondary, tertiary, quaternary });
 }
 ```
 
@@ -268,5 +269,5 @@ They are adjusted for lightness and chroma to harmonize with your primary, but t
 The harmony strategy is about your brand expression. The intent colors are about universal meaning.
 
 <div class="callout callout-note">
-  <strong>Most products never set <code>colorHarmony</code>.</strong> The default <code>'complementary'</code> works for the vast majority of use cases. If you find yourself tweaking accent colors and nothing feels right, try <code>'analogous'</code> — it produces the most cohesive, low-tension palette and is often the right choice for professional tools.
+  <strong>Most products never set <code>harmony</code>.</strong> The default <code>'analogous'</code> works for the vast majority of use cases. If you find yourself tweaking accent colors and nothing feels right, try <code>'complementary'</code> — it produces high contrast between primary and secondary and is often the right choice when you need strong visual hierarchy.
 </div>

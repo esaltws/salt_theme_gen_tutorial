@@ -21,11 +21,17 @@ The primary function. Call once at app startup.
 ```ts
 import { generateTheme } from 'salt-theme-gen';
 
+// From a preset name:
 const theme = generateTheme({
-  preset:   'ocean',    // preset name (see PRESETS) or hex color '#6366f1'
-  spacing:  'default', // 'compact' | 'default' | 'spacious'
+  preset:   'ocean',    // see PRESETS for all 20 names
+  spacing:  'default', // 'compact' | 'default' | 'relaxed' | 'spacious'
   radius:   'default', // 'sharp' | 'default' | 'rounded' | 'pill'
-  fontSize: 'default', // 'compact' | 'default' | 'large'
+  fontSize: 'default', // 'small' | 'default' | 'large' | 'editorial'
+});
+
+// From a hex color:
+const theme = generateTheme({
+  primary: '#6366f1', // any valid hex — use instead of preset
 });
 ```
 
@@ -41,149 +47,155 @@ interface GeneratedTheme {
 
 ```ts
 interface GeneratedThemeMode {
+  mode: 'light' | 'dark';
   colors: {
-    // Intent colors (brand/semantic)
-    primary:    string;  // OKLCH
-    secondary:  string;
-    tertiary:   string;
-    quaternary: string;
-    danger:     string;
-    success:    string;
-    warning:    string;
-    info:       string;
-    // On-colors (text that sits on intent backgrounds)
+    // Brand accent colors
+    primary:     string;  // hex
+    secondary:   string;
+    tertiary:    string;
+    quaternary:  string;
+    // On-colors (foreground on intent backgrounds — WCAG AA guaranteed)
     onPrimary:   string;
     onSecondary: string;
     onTertiary:  string;
+    onQuaternary:string;
     onDanger:    string;
     onSuccess:   string;
     onWarning:   string;
     onInfo:      string;
-    // Neutral colors
-    background: string;
-    surface:    string;
-    text:       string;
-    muted:      string;
-    border:     string;
-    overlay:    string;
+    // Neutral / utility
+    background:  string;
+    surface:     string;
+    text:        string;
+    muted:       string;
+    border:      string;
+    // Semantic intent colors
+    danger:      string;
+    success:     string;
+    warning:     string;
+    info:        string;
   };
   states: {
     // 8 intents × 4 states = 32 state tokens
-    primary:   { hover: string; pressed: string; focused: string; disabled: string; };
-    secondary: { hover: string; pressed: string; focused: string; disabled: string; };
-    tertiary:  { hover: string; pressed: string; focused: string; disabled: string; };
-    danger:    { hover: string; pressed: string; focused: string; disabled: string; };
-    success:   { hover: string; pressed: string; focused: string; disabled: string; };
-    warning:   { hover: string; pressed: string; focused: string; disabled: string; };
-    info:      { hover: string; pressed: string; focused: string; disabled: string; };
-    neutral:   { hover: string; pressed: string; focused: string; disabled: string; };
+    primary:    { hover: string; pressed: string; focused: string; disabled: string; };
+    secondary:  { hover: string; pressed: string; focused: string; disabled: string; };
+    tertiary:   { hover: string; pressed: string; focused: string; disabled: string; };
+    quaternary: { hover: string; pressed: string; focused: string; disabled: string; };
+    danger:     { hover: string; pressed: string; focused: string; disabled: string; };
+    success:    { hover: string; pressed: string; focused: string; disabled: string; };
+    warning:    { hover: string; pressed: string; focused: string; disabled: string; };
+    info:       { hover: string; pressed: string; focused: string; disabled: string; };
   };
   surfaceElevation: {
-    base:    string;  // lowest surface
-    raised:  string;  // slightly elevated (sticky headers)
-    card:    string;  // card/panel background
-    overlay: string;  // modal/popover backdrop
+    card:    string;  // card/sheet background
+    elevated:string;  // floating panels, bottom sheets
+    modal:   string;  // modals, dialogs
+    popover: string;  // tooltips, dropdowns, menus
   };
   spacing: {
-    xs: number;  // pixels — default: 4
-    sm: number;  //                   8
-    md: number;  //                   16
-    lg: number;  //                   24
-    xl: number;  //                   32
-    xxl: number; //                   48
+    none: number; // always 0
+    xs:   number; // default: 4
+    sm:   number; //          8
+    md:   number; //          12
+    lg:   number; //          16
+    xl:   number; //          24
+    xxl:  number; //          32
   };
   radius: {
-    sm:   number;  // default: 4
-    md:   number;  //          8
-    lg:   number;  //          12
-    xl:   number;  //          16
-    xxl:  number;  //          24
-    pill: number;  //          9999
-    full: number;  //          50 (for circles, use 50%)
+    none: number; // always 0
+    sm:   number; // default: 6
+    md:   number; //          10
+    lg:   number; //          14
+    xl:   number; //          20
+    xxl:  number; //          24
+    pill: number; //          999
   };
   fontSizes: {
-    xs:   number;  // default: 12
-    sm:   number;  //          14
-    md:   number;  //          16
-    lg:   number;  //          18
-    xl:   number;  //          20
-    xxl:  number;  //          24
-    '3xl': number; //          30
+    xs:    number; // default: 12
+    sm:    number; //          14
+    md:    number; //          16
+    lg:    number; //          18
+    xl:    number; //          20
+    xxl:   number; //          24
+    '3xl': number; //          32
   };
+  fontLevel: number; // 8–18 (for react-native-salt)
   accessibility: {
-    // WCAG 2.1 contrast ratio checks (AA = 4.5:1, AAA = 7:1)
-    primaryOnBackground:   { ratio: number; aa: boolean; aaa: boolean; };
-    primaryOnSurface:      { ratio: number; aa: boolean; aaa: boolean; };
-    textOnBackground:      { ratio: number; aa: boolean; aaa: boolean; };
-    textOnSurface:         { ratio: number; aa: boolean; aaa: boolean; };
-    mutedOnBackground:     { ratio: number; aa: boolean; aaa: boolean; };
-    mutedOnSurface:        { ratio: number; aa: boolean; aaa: boolean; };
-    onPrimaryOnPrimary:    { ratio: number; aa: boolean; aaa: boolean; };
-    onDangerOnDanger:      { ratio: number; aa: boolean; aaa: boolean; };
-    onSuccessOnSuccess:    { ratio: number; aa: boolean; aaa: boolean; };
-    onWarningOnWarning:    { ratio: number; aa: boolean; aaa: boolean; };
-    dangerOnBackground:    { ratio: number; aa: boolean; aaa: boolean; };
-    successOnBackground:   { ratio: number; aa: boolean; aaa: boolean; };
-    warningOnBackground:   { ratio: number; aa: boolean; aaa: boolean; };
-    infoOnBackground:      { ratio: number; aa: boolean; aaa: boolean; };
-    dangerOnSurface:       { ratio: number; aa: boolean; aaa: boolean; };
-    successOnSurface:      { ratio: number; aa: boolean; aaa: boolean; };
-    warningOnSurface:      { ratio: number; aa: boolean; aaa: boolean; };
-    infoOnSurface:         { ratio: number; aa: boolean; aaa: boolean; };
+    // WCAG 2.1 contrast ratio. Each entry: { ratio: number; level: "AAA" | "AA" | "fail" }
+    primaryOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    secondaryOnBackground:    { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    tertiaryOnBackground:     { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    quaternaryOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    textOnBackground:         { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    textOnSurface:            { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    dangerOnBackground:       { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    successOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    warningOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    infoOnBackground:         { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    onPrimaryOnPrimary:       { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    onSecondaryOnSecondary:   { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    onTertiaryOnTertiary:     { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    onQuaternaryOnQuaternary: { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    onDangerOnDanger:         { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    onSuccessOnSuccess:       { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    onWarningOnWarning:       { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
+    onInfoOnInfo:             { ratio: number; level: 'AAA' | 'AA' | 'fail'; };
   };
 }
 ```
 
 ### adjustTheme(theme, overrides) → GeneratedTheme
 
-Modify specific token values without regenerating. Accepts a deep partial.
+Apply partial overrides to an existing theme. Automatically regenerates derived tokens (onColors, states, accessibility) when base colors change.
 
 ```ts
 import { adjustTheme } from 'salt-theme-gen';
 
 const adjusted = adjustTheme(theme, {
-  light: {
-    colors: { primary: '#6366f1' },
-    spacing: { md: 20 },
-  },
+  light: { colors: { primary: '#6366f1' }, spacing: { md: 14 } },
+  dark:  { colors: { primary: '#818cf8' } },
+  both:  { spacing: { md: 14 } },  // both: applies to both modes; mode keys win per field
 });
 ```
 
 ### diffTheme(a, b) → ThemeDiff
 
-Compare two themes and return changed tokens.
+Compare two themes. Returns changed tokens only.
 
 ```ts
 import { diffTheme } from 'salt-theme-gen';
 
 const diff = diffTheme(themeA, themeB);
-// diff.light.colors.primary → { from: '...', to: '...' }
+// diff.identical — true if no changes
+// diff.light.colors?.primary → { old: '...', new: '...' }
+// FieldChange<T> = { old: T; new: T }
 ```
 
-### parseThemeJSON(json) → ParseResult
+### parseThemeJSON(json) → GeneratedTheme
 
-Runtime validation. Returns discriminated union.
+Runtime validation. Throws an Error on invalid input.
 
 ```ts
 import { parseThemeJSON } from 'salt-theme-gen';
 
-const result = parseThemeJSON(unknownData);
-if (result.success) {
-  // result.theme: GeneratedTheme
-} else {
-  // result.error: string
+try {
+  const theme = parseThemeJSON(unknownData); // GeneratedTheme
+} catch (err) {
+  console.error(err.message); // descriptive validation error
 }
 ```
 
 ### contrastRatio(colorA, colorB) → number
 
-Calculate WCAG contrast ratio between two OKLCH colors.
+Calculate WCAG contrast ratio between two hex colors. Returns a number (1–21).
 
 ```ts
 import { contrastRatio } from 'salt-theme-gen';
 
 const ratio = contrastRatio(theme.light.colors.primary, theme.light.colors.background);
-// ratio >= 4.5 for WCAG AA
+console.log(ratio);       // e.g. 4.82
+console.log(ratio >= 4.5); // true → passes WCAG AA
+console.log(ratio >= 7.0); // false → doesn't reach AAA
 ```
 
 ## TypeScript types
@@ -194,63 +206,77 @@ All types are exported from 'salt-theme-gen':
 import type {
   GeneratedTheme,
   GeneratedThemeMode,
-  ThemeOptions,
+  GenerateThemeOptions,  // input options for generateTheme()
+  SemanticColors,
+  IntentStates,
+  StateColors,
+  SurfaceElevation,
+  AccessibilityReport,
+  ContrastEntry,         // { ratio: number; level: "AAA" | "AA" | "fail" }
+  SpacingScale,
+  RadiusScale,
+  FontSizeScale,
+  ThemePreset,           // union of all 20 preset names
+  ColorHarmony,          // 'analogous' | 'complementary' | 'triadic' | 'split-complementary' | 'tetradic' | 'monochromatic'
+  SpacingPreset,         // 'compact' | 'default' | 'relaxed' | 'spacious'
+  RadiusPreset,          // 'sharp' | 'default' | 'rounded' | 'pill'
+  FontSizePreset,        // 'small' | 'default' | 'large' | 'editorial'
+  ThemeOverrides,        // input for adjustTheme()
+  ThemeModeOverrides,
   ThemeDiff,
-  ParseResult,
-  IntentName,   // 'primary' | 'secondary' | 'tertiary' | ... | 'neutral'
-  StateName,    // 'hover' | 'pressed' | 'focused' | 'disabled'
-  SpacingScale, // 'compact' | 'default' | 'spacious'
-  RadiusScale,  // 'sharp' | 'default' | 'rounded' | 'pill'
-  FontScale,    // 'compact' | 'default' | 'large'
+  ThemeModeDiff,
+  FieldChange,           // { old: T; new: T }
 } from 'salt-theme-gen';
 ```
 
 ## PRESETS
 
-20 built-in color presets. Use as the `preset` option in generateTheme().
+20 built-in nature-inspired presets. Pass as `preset` in generateTheme().
 
-| Preset    | Hue  | Character            |
-|-----------|------|----------------------|
-| ocean     | 235  | Deep blue, calm      |
-| slate     | 215  | Blue-grey, neutral   |
-| rose      | 10   | Warm pink-red        |
-| violet    | 270  | Purple, creative     |
-| amber     | 45   | Warm orange-yellow   |
-| emerald   | 155  | Fresh green          |
-| ruby      | 355  | Rich red             |
-| cobalt    | 225  | Bright blue          |
-| forest    | 140  | Deep earthy green    |
-| sunset    | 30   | Orange-amber         |
-| arctic    | 200  | Ice blue             |
-| copper    | 25   | Warm metallic brown  |
-| midnight  | 245  | Deep blue-violet     |
-| coral     | 20   | Warm coral           |
-| sage      | 150  | Muted sage green     |
-| indigo    | 255  | Indigo               |
-| teal      | 185  | Teal                 |
-| gold      | 50   | Rich gold            |
-| plum      | 290  | Deep purple          |
-| crimson   | 0    | Vivid red            |
+| Preset         | Hue  | Character                     |
+|----------------|------|-------------------------------|
+| peacock        | 175  | Teal-green, vibrant           |
+| ocean          | 235  | Deep sea blue, professional   |
+| forest         | 145  | Green canopy, earthy          |
+| sunset         | 45   | Warm orange sky               |
+| cherry-blossom | 350  | Pink petals, delicate         |
+| arctic         | 230  | Cool ice blue, minimal        |
+| desert         | 60   | Sandy terracotta, refined     |
+| lavender       | 300  | Purple flower fields, calm    |
+| emerald        | 155  | Deep green gemstone           |
+| coral-reef     | 25   | Warm coral pink               |
+| midnight       | 260  | Deep navy, developer tool     |
+| autumn         | 50   | Burnt orange leaves           |
+| rose-gold      | 15   | Soft metallic pink, premium   |
+| sapphire       | 255  | Rich blue gem, authority      |
+| mint           | 165  | Fresh cool green              |
+| volcano        | 30   | Fiery red-orange, intense     |
+| twilight       | 290  | Dusk purple, modern           |
+| honey          | 70   | Golden amber, warm            |
+| storm          | 245  | Gray-blue thundercloud        |
+| aurora         | 155  | Northern lights, futuristic   |
 
-Custom: pass any hex color as preset: '#6366f1'
+Custom: use `primary` option for hex colors — `generateTheme({ primary: '#6366f1' })`
 
 ## SCALE OPTIONS
 
-### spacing
-- compact:  xs:3  sm:6  md:12  lg:18  xl:24  xxl:36
-- default:  xs:4  sm:8  md:16  lg:24  xl:32  xxl:48
-- spacious: xs:6  sm:12 md:20  lg:32  xl:48  xxl:72
+### spacing (SpacingPreset)
+- compact:  none:0 xs:2  sm:4  md:8  lg:12 xl:16 xxl:24
+- default:  none:0 xs:4  sm:8  md:12 lg:16 xl:24 xxl:32
+- relaxed:  none:0 xs:6  sm:12 md:16 lg:20 xl:32 xxl:40
+- spacious: none:0 xs:8  sm:16 md:20 lg:28 xl:40 xxl:52
 
-### radius
-- sharp:    sm:0  md:2  lg:4   xl:6   pill:4
-- default:  sm:4  md:8  lg:12  xl:16  pill:9999
-- rounded:  sm:8  md:12 lg:16  xl:24  pill:9999
-- pill:     sm:16 md:24 lg:32  xl:40  pill:9999
+### radius (RadiusPreset)
+- sharp:    none:0 sm:2  md:4  lg:6  xl:8  xxl:10 pill:0
+- default:  none:0 sm:6  md:10 lg:14 xl:20 xxl:24 pill:999
+- rounded:  none:0 sm:10 md:14 lg:18 xl:24 xxl:30 pill:999
+- pill:     none:0 sm:14 md:18 lg:24 xl:30 xxl:40 pill:999
 
-### fontSize
-- compact:  xs:11 sm:13 md:15  lg:17  xl:19  xxl:22 3xl:28
-- default:  xs:12 sm:14 md:16  lg:18  xl:20  xxl:24 3xl:30
-- large:    xs:14 sm:16 md:18  lg:20  xl:22  xxl:28 3xl:36
+### fontSize (FontSizePreset)
+- small:     xs:10 sm:12 md:14 lg:16 xl:20 xxl:26 3xl:32
+- default:   xs:12 sm:14 md:16 lg:18 xl:20 xxl:24 3xl:32
+- large:     xs:14 sm:16 md:18 lg:24 xl:28 xxl:36 3xl:44
+- editorial: xs:14 sm:16 md:20 lg:28 xl:36 xxl:48 3xl:56
 
 ## CSS VARIABLE NAMING CONVENTION
 
@@ -269,8 +295,10 @@ colors.success        → --color-success
 colors.warning        → --color-warning
 colors.info           → --color-info
 
-surfaceElevation.card → --surface-card
-surfaceElevation.base → --surface-base
+surfaceElevation.card     → --surface-card
+surfaceElevation.elevated → --surface-elevated
+surfaceElevation.modal    → --surface-modal
+surfaceElevation.popover  → --surface-popover
 
 spacing.md            → --space-md            (not --spacing-md)
 radius.md             → --radius-md
@@ -365,13 +393,27 @@ Always wrap StyleSheet.create in useMemo([mode]) to avoid recreation on every re
 ## ACCESSIBILITY
 
 theme.light.accessibility contains 18 WCAG 2.1 contrast ratio checks.
-All AA checks pass by default. If any fail, adjustTheme() can override problem colors.
+Each entry: `{ ratio: number; level: "AAA" | "AA" | "fail" }`
+All checks pass AA by default. If any fail, the package auto-corrects and warns.
 
 ```ts
 const { accessibility } = theme.light;
-const allAA = Object.values(accessibility).every(c => c.aa);
+
+// Check all AA
+const allAA = Object.values(accessibility).every(c => c.level !== 'fail');
 // true for all built-in presets
+
+// Check specific pair
+console.log(accessibility.primaryOnBackground);
+// { ratio: 4.51, level: 'AA' }
+
+// Use contrastRatio() for custom pairs not in the report
+import { contrastRatio } from 'salt-theme-gen';
+const ratio = contrastRatio(theme.light.colors.primary, theme.light.colors.surface);
+// number (1–21)
 ```
+
+The 18 checks: primaryOnBackground, secondaryOnBackground, tertiaryOnBackground, quaternaryOnBackground, textOnBackground, textOnSurface, dangerOnBackground, successOnBackground, warningOnBackground, infoOnBackground, onPrimaryOnPrimary, onSecondaryOnSecondary, onTertiaryOnTertiary, onQuaternaryOnQuaternary, onDangerOnDanger, onSuccessOnSuccess, onWarningOnWarning, onInfoOnInfo
 
 ## RELATED PACKAGES
 

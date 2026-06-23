@@ -17,41 +17,39 @@ import type {
 
   // Color
   SemanticColors,
-  IntentName,
-  StateName,
   IntentStates,
-  IntentStateColors,
+  StateColors,
 
   // Surfaces and scales
   SurfaceElevation,
   SpacingScale,
   RadiusScale,
   FontSizeScale,
-  SpacingKey,
-  RadiusKey,
-  FontSizeKey,
 
   // Accessibility
   AccessibilityReport,
-  AccessibilityEntry,
+  ContrastEntry,
 
   // Options
-  ThemeOptions,
-  PresetName,
+  GenerateThemeOptions,
+  ThemePreset,
   ColorHarmony,
   SpacingPreset,
   RadiusPreset,
   FontSizePreset,
 
-  // Diff and parse
+  // Adjust
+  ThemeOverrides,
+  ThemeModeOverrides,
+
+  // Diff
   ThemeDiff,
-  ModeDiff,
-  TokenDiff,
-  ParseResult,
+  ThemeModeDiff,
+  FieldChange,
 } from 'salt-theme-gen';
 ```
 
-You rarely need all of these. The three you will use most are `GeneratedTheme`, `GeneratedThemeMode`, and `ThemeOptions`.
+You rarely need all of these. The three you will use most are `GeneratedTheme`, `GeneratedThemeMode`, and `GenerateThemeOptions`.
 
 ---
 
@@ -119,39 +117,44 @@ interface SemanticColors {
 The 32 state colors as a nested record:
 
 ```ts
-type IntentName = 'primary' | 'secondary' | 'tertiary' | 'quaternary'
-                | 'danger'  | 'success'   | 'warning'  | 'info';
+// These types are not exported from the package — define them locally if needed
+type IntentName = keyof GeneratedThemeMode['states'];
+// 'primary' | 'secondary' | 'tertiary' | 'quaternary' | 'danger' | 'success' | 'warning' | 'info'
 
-type StateName  = 'hover' | 'pressed' | 'focused' | 'disabled';
+type StateName = keyof GeneratedThemeMode['states']['primary'];
+// 'hover' | 'pressed' | 'focused' | 'disabled'
 
-type IntentStateColors = Record<StateName, string>;
-type IntentStates      = Record<IntentName, IntentStateColors>;
+// IntentStates and StateColors are exported from salt-theme-gen:
+import type { IntentStates, StateColors } from 'salt-theme-gen';
 ```
 
-### ThemeOptions
+### GenerateThemeOptions
 
 The input type for `generateTheme()`:
 
 ```ts
-interface ThemeOptions {
-  preset?:        PresetName;
-  primary?:       string;          // hex color — alternative to preset
-  spacing?:       SpacingPreset;   // 'compact' | 'default' | 'spacious'
-  radius?:        RadiusPreset;    // 'none' | 'sm' | 'default' | 'lg' | 'pill'
-  fontSize?:      FontSizePreset;  // 'small' | 'default' | 'large'
-  colorHarmony?:  ColorHarmony;    // 'complementary' | 'analogous' | 'triadic' | 'split-complementary'
-  silent?:        boolean;         // suppress console.warn for auto-corrections
+interface GenerateThemeOptions {
+  preset?:     ThemePreset;    // named preset — takes priority over primary
+  primary?:    string;         // hex color — used if no preset is given
+  secondary?:  string;         // override auto-derived secondary
+  tertiary?:   string;         // override auto-derived tertiary
+  quaternary?: string;         // override auto-derived quaternary
+  harmony?:    ColorHarmony;   // 'analogous' | 'complementary' | 'triadic' | 'split-complementary' | 'tetradic' | 'monochromatic'
+  spacing?:    SpacingPreset;  // 'compact' | 'default' | 'relaxed' | 'spacious'
+  radius?:     RadiusPreset;   // 'sharp' | 'default' | 'rounded' | 'pill'
+  fontSize?:   FontSizePreset; // 'small' | 'default' | 'large' | 'editorial'
+  fontLevel?:  number;         // 8–18, consumed by react-native-salt
 }
 ```
 
-`preset` and `primary` are mutually exclusive — passing both is a type error.
+When both `preset` and `primary` are provided, `preset` takes priority.
 
-### PresetName
+### ThemePreset
 
 The union of all valid preset strings:
 
 ```ts
-type PresetName =
+type ThemePreset =
   | 'peacock' | 'ocean'     | 'forest'    | 'sunset'
   | 'cherry-blossom'        | 'arctic'    | 'desert'
   | 'lavender'| 'emerald'   | 'coral-reef'| 'midnight'
@@ -230,7 +233,9 @@ function Card() {
 Using `IntentName` to type intent-driven props:
 
 ```ts
-import type { GeneratedThemeMode, IntentName } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+type IntentName = keyof GeneratedThemeMode['states']; // defined locally
 
 interface BadgeProps {
   label:   string;
@@ -257,7 +262,10 @@ function Badge({ label, intent, mode }: BadgeProps) {
 Using `StateName` to build accessible interactive styles:
 
 ```ts
-import type { GeneratedThemeMode, IntentName, StateName } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+type IntentName = keyof GeneratedThemeMode['states']; // defined locally
+type StateName  = keyof GeneratedThemeMode['states']['primary']; // defined locally
 
 function getStateColor(
   mode:   GeneratedThemeMode,
@@ -280,12 +288,12 @@ getStateColor(theme.light, 'primary', 'clicking'); // ✗ type error
 Iterating the report with full type safety:
 
 ```ts
-import type { AccessibilityReport, AccessibilityEntry } from 'salt-theme-gen';
+import type { AccessibilityReport, ContrastEntry } from 'salt-theme-gen';
 
 function auditTheme(report: AccessibilityReport): void {
-  const entries = Object.entries(report) as [string, AccessibilityEntry][];
+  const entries = Object.entries(report) as [string, ContrastEntry][];
 
-  const failures = entries.filter(([, e]) => e.level === 'FAIL');
+  const failures = entries.filter(([, e]) => e.level === 'fail');
   const aaa      = entries.filter(([, e]) => e.level === 'AAA');
 
   console.log(`AAA: ${aaa.length}/18 checks`);
@@ -336,26 +344,21 @@ const brandOverrides: DeepPartialTheme = {
 
 ---
 
-## Using ParseResult
+## Using parseThemeJSON
 
-After `parseThemeJSON()`, TypeScript narrows the type correctly:
+`parseThemeJSON()` returns `GeneratedTheme` directly — there is no discriminated union. TypeScript types the return as `GeneratedTheme` and the function throws on invalid input:
 
 ```ts
 import { parseThemeJSON } from 'salt-theme-gen';
-import type { ParseResult, GeneratedTheme } from 'salt-theme-gen';
+import type { GeneratedTheme } from 'salt-theme-gen';
 
 function loadTheme(raw: unknown): GeneratedTheme {
-  const result: ParseResult = parseThemeJSON(raw);
-
-  if (result.success) {
-    return result.theme; // GeneratedTheme — narrowed by TypeScript
-  }
-
-  throw new Error(result.errors.join('\n')); // string[] — narrowed by TypeScript
+  // parseThemeJSON throws if the data is invalid — no discriminated union
+  return parseThemeJSON(raw);
 }
 ```
 
-The discriminated union means TypeScript knows `result.theme` only exists when `result.success === true`, and `result.errors` only exists when `result.success === false`. No casting needed.
+No casting needed — the return type is `GeneratedTheme` directly. Let the caller handle the thrown error as appropriate for their context.
 
 ---
 
@@ -390,7 +393,9 @@ function getMode(theme: GeneratedTheme, mode: ThemeMode): GeneratedThemeMode {
 If you write a switch on `IntentName`, TypeScript can enforce exhaustiveness:
 
 ```ts
-import type { IntentName } from 'salt-theme-gen';
+import type { GeneratedThemeMode } from 'salt-theme-gen';
+
+type IntentName = keyof GeneratedThemeMode['states']; // defined locally
 
 function intentLabel(intent: IntentName): string {
   switch (intent) {

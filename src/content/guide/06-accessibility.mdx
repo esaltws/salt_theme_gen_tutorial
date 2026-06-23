@@ -26,9 +26,9 @@ const { accessibility } = theme.light;
 Each entry in the report has the same shape:
 
 ```ts
-interface AccessibilityEntry {
+interface ContrastEntry {
   ratio: number;  // The actual contrast ratio (e.g. 5.2)
-  level: 'AAA' | 'AA' | 'FAIL';
+  level: 'AAA' | 'AA' | 'fail';
 }
 ```
 
@@ -51,27 +51,19 @@ The library targets **AA as the minimum** for all 18 checks. If a check would fa
 
 ## All 18 checks
 
-### Text legibility (3)
-
-These are the most critical checks — they validate that readable text is actually readable.
+### Text legibility (2)
 
 ```ts
 accessibility.textOnBackground
 // Primary text color on page background
-// Expected: AAA — this should always be > 7:1
-
-accessibility.mutedOnBackground
-// Muted text (placeholders, captions) on page background
-// Expected: AA — passes 4.5:1 minimum
+// Expected: AAA — should always exceed 7:1
 
 accessibility.textOnSurface
 // Primary text on card/input surface
 // Expected: AAA — cards are text containers
 ```
 
-These three should never fail. If your primary and muted text colors don't clear AA on your background, the entire product is inaccessible. The library ensures they pass.
-
-### Brand colors on background (3)
+### Brand colors on surfaces (4)
 
 ```ts
 accessibility.primaryOnBackground
@@ -84,16 +76,18 @@ accessibility.secondaryOnBackground
 
 accessibility.tertiaryOnBackground
 // Tertiary accent as text/icon on background
-// Expected: AA (may be AA Large at lower ratios)
+// Expected: AA
+
+accessibility.quaternaryOnBackground
+// Quaternary accent as text/icon on background
+// Expected: AA
 ```
 
-These check whether your brand colors are usable as foreground elements — links, inline icons, active indicators. A brand color that's vivid as a button fill is not necessarily legible as body-weight text.
-
-### Foreground on intent (3)
+### Foreground on intent — button text legibility (4)
 
 ```ts
 accessibility.onPrimaryOnPrimary
-// onPrimary text on primary background — your button text
+// onPrimary text on primary background — your primary button text
 // Expected: AA
 
 accessibility.onSecondaryOnSecondary
@@ -103,15 +97,19 @@ accessibility.onSecondaryOnSecondary
 accessibility.onTertiaryOnTertiary
 // onTertiary text on tertiary background
 // Expected: AA
+
+accessibility.onQuaternaryOnQuaternary
+// onQuaternary text on quaternary background
+// Expected: AA
 ```
 
-These are the most important checks for interactive elements. A button with `background: primary, color: onPrimary` must pass here or the label is illegible. The library guarantees these pass by choosing `onPrimary` from near-white or near-black — whichever has the higher contrast with `primary`.
+These are the most important checks for interactive elements. A button with `background: primary, color: onPrimary` must pass here or the label is illegible. The library guarantees these pass by choosing `on*` colors from near-white or near-black — whichever has higher contrast with the base color.
 
 ### Intent colors on background (4)
 
 ```ts
 accessibility.dangerOnBackground
-// Danger color as text/icon on background (error messages, inline warnings)
+// Danger color as text/icon on background (error messages)
 // Expected: AA
 
 accessibility.successOnBackground
@@ -120,16 +118,14 @@ accessibility.successOnBackground
 
 accessibility.warningOnBackground
 // Warning color as text/icon on background
-// Note: yellow/amber is hardest to pass — auto-correction may darken it significantly
+// Note: amber hues are hardest to pass — auto-correction may darken significantly
 
 accessibility.infoOnBackground
 // Info color as text/icon on background
 // Expected: AA
 ```
 
-`warningOnBackground` is the check most likely to require auto-correction. Yellow and amber hues have high luminance, which means they fail contrast against white backgrounds at the saturation levels that make them visually "warning-like." The library darkens the amber until it passes, then reports the corrected value.
-
-### On-intent foregrounds (4)
+### On-intent foregrounds — text on semantic backgrounds (4)
 
 ```ts
 accessibility.onDangerOnDanger
@@ -149,16 +145,6 @@ accessibility.onInfoOnInfo
 // Expected: AA
 ```
 
-### Structural (1)
-
-```ts
-accessibility.borderOnBackground
-// Border color against page background
-// Expected: 3.0:1 — uses Large Text threshold (borders are non-text UI elements)
-```
-
-Borders are structural — they communicate layout, not content. The 3.0:1 threshold (AA Large) applies. A border that is too subtle to distinguish from the background is a usability problem even if it is not a text-legibility failure.
-
 ---
 
 ## Reading the full report
@@ -168,7 +154,7 @@ const report = theme.light.accessibility;
 
 // Print all checks
 for (const [check, result] of Object.entries(report)) {
-  const icon = result.level === 'FAIL' ? '✗' : result.level === 'AAA' ? '★' : '✓';
+  const icon = result.level === 'fail' ? '✗' : result.level === 'AAA' ? '★' : '✓';
   console.log(`${icon} ${check}: ${result.ratio.toFixed(1)} (${result.level})`);
 }
 ```
@@ -176,24 +162,24 @@ for (const [check, result] of Object.entries(report)) {
 Sample output for the Ocean preset (light mode):
 
 ```
-★ textOnBackground: 14.1 (AAA)
-✓ mutedOnBackground: 4.8 (AA)
-★ textOnSurface: 13.9 (AAA)
-✓ primaryOnBackground: 5.2 (AA)
-✓ secondaryOnBackground: 4.6 (AA)
-✓ tertiaryOnBackground: 4.5 (AA)
-✓ onPrimaryOnPrimary: 6.1 (AA)
-✓ onSecondaryOnSecondary: 5.4 (AA)
-✓ onTertiaryOnTertiary: 4.8 (AA)
-✓ dangerOnBackground: 5.1 (AA)
-✓ successOnBackground: 4.6 (AA)
+★ textOnBackground: 18.4 (AAA)
+★ textOnSurface: 20.1 (AAA)
+✓ primaryOnBackground: 4.5 (AA)
+✓ secondaryOnBackground: 4.5 (AA)
+✓ tertiaryOnBackground: 5.0 (AA)
+✓ quaternaryOnBackground: 4.5 (AA)
+✓ dangerOnBackground: 4.9 (AA)
+✓ successOnBackground: 4.5 (AA)
 ✓ warningOnBackground: 4.5 (AA)
-✓ infoOnBackground: 4.9 (AA)
-✓ onDangerOnDanger: 5.8 (AA)
-✓ onSuccessOnSuccess: 4.7 (AA)
-✓ onWarningOnWarning: 4.6 (AA)
-✓ onInfoOnInfo: 5.2 (AA)
-✓ borderOnBackground: 3.1 (AA)
+✓ infoOnBackground: 4.5 (AA)
+✓ onPrimaryOnPrimary: 4.9 (AA)
+✓ onSecondaryOnSecondary: 5.0 (AA)
+✓ onTertiaryOnTertiary: 5.5 (AA)
+✓ onQuaternaryOnQuaternary: 4.9 (AA)
+✓ onDangerOnDanger: 5.3 (AA)
+✓ onSuccessOnSuccess: 4.9 (AA)
+✓ onWarningOnWarning: 5.0 (AA)
+✓ onInfoOnInfo: 4.9 (AA)
 ```
 
 ---
@@ -258,12 +244,12 @@ describe('theme accessibility', () => {
   const checks = Object.entries(theme.light.accessibility);
 
   test.each(checks)('%s passes WCAG AA', (_, result) => {
-    expect(result.level).not.toBe('FAIL');
+    expect(result.level).not.toBe('fail');
   });
 
   test.each(checks)('%s passes WCAG AA in dark mode', (_, _result) => {
     const darkResult = theme.dark.accessibility[_ as keyof typeof theme.dark.accessibility];
-    expect(darkResult.level).not.toBe('FAIL');
+    expect(darkResult.level).not.toBe('fail');
   });
 });
 ```

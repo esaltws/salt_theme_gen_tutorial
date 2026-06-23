@@ -34,28 +34,25 @@ const diff = diffTheme(before, after);
 
 ```ts
 interface ThemeDiff {
-  light: ModeDiff;
-  dark:  ModeDiff;
+  light:     ThemeModeDiff;
+  dark:      ThemeModeDiff;
+  identical: boolean;  // true when both modes are unchanged
 }
 
-interface ModeDiff {
-  colors:          Record<string, TokenDiff>;
-  states:          Record<string, Record<string, TokenDiff>>;
-  surfaceElevation: Record<string, TokenDiff>;
-  spacing:         Record<string, TokenDiff>;
-  radius:          Record<string, TokenDiff>;
-  fontSizes:       Record<string, TokenDiff>;
-  accessibility:   Record<string, AccessibilityDiff>;
+interface ThemeModeDiff {
+  // Only sections with changes are present
+  colors?:          Partial<Record<string, FieldChange<string>>>;
+  states?:          Partial<Record<string, Partial<Record<string, FieldChange<string>>>>>;
+  surfaceElevation?: Partial<Record<string, FieldChange<string>>>;
+  spacing?:         Partial<Record<string, FieldChange<number>>>;
+  radius?:          Partial<Record<string, FieldChange<number>>>;
+  fontSizes?:       Partial<Record<string, FieldChange<number>>>;
+  accessibility?:   Partial<Record<string, { ratio?: FieldChange<number>; level?: FieldChange<string> }>>;
 }
 
-interface TokenDiff {
-  before: string | number;
-  after:  string | number;
-}
-
-interface AccessibilityDiff {
-  before: { ratio: number; level: string };
-  after:  { ratio: number; level: string };
+interface FieldChange<T = unknown> {
+  old: T;
+  new: T;
 }
 ```
 
@@ -68,20 +65,24 @@ Only changed tokens appear. If `spacing.md` is `12` in both themes, it will not 
 ```ts
 const diff = diffTheme(before, after);
 
+if (!diff.identical) {
+  console.log('Themes differ');
+}
+
 // Which colors changed in light mode?
-console.log(Object.keys(diff.light.colors));
+console.log(Object.keys(diff.light.colors ?? {}));
 // ['primary', 'secondary', 'tertiary', 'quaternary', 'background', 'surface', ...]
 
 // What did primary change from and to?
-console.log(diff.light.colors.primary);
-// { before: 'oklch(0.55 0.18 220)', after: 'oklch(0.50 0.15 145)' }
+console.log(diff.light.colors?.primary);
+// { old: 'oklch(0.55 0.18 220)', new: 'oklch(0.50 0.15 145)' }
 
 // Did any accessibility levels change?
 console.log(diff.light.accessibility);
-// { primaryOnBackground: { before: { ratio: 5.2, level: 'AA' }, after: { ratio: 4.8, level: 'AA' } } }
+// { primaryOnBackground: { ratio: { old: 5.2, new: 4.8 } } }
 
 // Did spacing change at all?
-console.log(Object.keys(diff.light.spacing));
+console.log(Object.keys(diff.light.spacing ?? {}));
 // [] — no spacing changes between two color-only changes
 ```
 
@@ -99,22 +100,22 @@ function printDiff(diff: ReturnType<typeof diffTheme>) {
     const m = diff[mode];
     console.log(`\n── ${mode.toUpperCase()} MODE ──`);
 
-    if (Object.keys(m.colors).length) {
+    if (Object.keys(m.colors ?? {}).length) {
       console.log('\nColors:');
-      for (const [k, v] of Object.entries(m.colors))
-        console.log(`  ${k}: ${v.before} → ${v.after}`);
+      for (const [k, v] of Object.entries(m.colors ?? {}))
+        console.log(`  ${k}: ${v.old} → ${v.new}`);
     }
 
-    if (Object.keys(m.accessibility).length) {
+    if (Object.keys(m.accessibility ?? {}).length) {
       console.log('\nAccessibility:');
-      for (const [k, v] of Object.entries(m.accessibility))
-        console.log(`  ${k}: ${v.before.ratio.toFixed(1)} (${v.before.level}) → ${v.after.ratio.toFixed(1)} (${v.after.level})`);
+      for (const [k, v] of Object.entries(m.accessibility ?? {}))
+        console.log(`  ${k}: ratio ${v.ratio?.old?.toFixed(1)} → ${v.ratio?.new?.toFixed(1)}`);
     }
 
-    if (Object.keys(m.spacing).length) {
+    if (Object.keys(m.spacing ?? {}).length) {
       console.log('\nSpacing:');
-      for (const [k, v] of Object.entries(m.spacing))
-        console.log(`  ${k}: ${v.before}px → ${v.after}px`);
+      for (const [k, v] of Object.entries(m.spacing ?? {}))
+        console.log(`  ${k}: ${v.old}px → ${v.new}px`);
     }
   }
 }
@@ -205,7 +206,7 @@ const diff = diffTheme(base, adjusted);
 
 // Should only show spacing.md
 console.log(diff.light.spacing);
-// { md: { before: 12, after: 14 } }
+// { md: { old: 12, new: 14 } }
 
 console.log(Object.keys(diff.light.colors));
 // [] — no color changes, as expected
@@ -225,19 +226,19 @@ const after  = generateTheme({ primary: '#1A6BB5' }); // custom color
 
 const diff = diffTheme(before, after);
 
-const regressions = Object.entries(diff.light.accessibility)
-  .filter(([, v]) => v.after.ratio < v.before.ratio)
+const regressions = Object.entries(diff.light.accessibility ?? {})
+  .filter(([, v]) => v.ratio && v.ratio.new < v.ratio.old)
   .map(([k, v]) => ({
     check: k,
-    before: v.before,
-    after: v.after,
-    dropped: (v.before.ratio - v.after.ratio).toFixed(2),
+    oldRatio: v.ratio!.old,
+    newRatio: v.ratio!.new,
+    dropped: (v.ratio!.old - v.ratio!.new).toFixed(2),
   }));
 
 if (regressions.length) {
   console.warn('Accessibility regressions detected:');
   regressions.forEach(r =>
-    console.warn(`  ${r.check}: ${r.before.ratio} → ${r.after.ratio} (−${r.dropped})`),
+    console.warn(`  ${r.check}: ${r.oldRatio.toFixed(2)} → ${r.newRatio.toFixed(2)} (−${r.dropped})`),
   );
 }
 ```

@@ -14,9 +14,9 @@ Scales are the non-color dimension of your design system. While colors define id
 ```ts
 generateTheme({
   preset: 'ocean',
-  spacing: 'default',   // 'compact' | 'default' | 'spacious'
-  radius:  'default',   // 'none' | 'sm' | 'default' | 'lg' | 'pill'
-  fontSize: 'default',  // 'small' | 'default' | 'large'
+  spacing: 'default',   // 'compact' | 'default' | 'relaxed' | 'spacious'
+  radius:  'default',   // 'sharp' | 'default' | 'rounded' | 'pill'
+  fontSize: 'default',  // 'small' | 'default' | 'large' | 'editorial'
 })
 ```
 
@@ -30,14 +30,15 @@ Spacing controls all gap, padding, and margin values in your system. Six named s
 
 ### Spacing preset values (in px)
 
-| Token | `compact` | `default` | `spacious` |
-| ----- | --------- | --------- | ---------- |
-| `xs`  | 2         | 4         | 6          |
-| `sm`  | 4         | 8         | 12         |
-| `md`  | 8         | 12        | 20         |
-| `lg`  | 12        | 16        | 28         |
-| `xl`  | 16        | 24        | 40         |
-| `xxl` | 24        | 40        | 64         |
+| Token | `compact` | `default` | `relaxed` | `spacious` |
+| ----- | --------- | --------- | --------- | ---------- |
+| `none`| 0         | 0         | 0         | 0          |
+| `xs`  | 2         | 4         | 6         | 8          |
+| `sm`  | 4         | 8         | 12        | 16         |
+| `md`  | 8         | 12        | 16        | 20         |
+| `lg`  | 12        | 16        | 20        | 28         |
+| `xl`  | 16        | 24        | 32        | 40         |
+| `xxl` | 24        | 32        | 40        | 52         |
 
 ### Reading the table
 
@@ -83,7 +84,7 @@ Use when you want the layout to breathe and content to feel premium. Common in:
 
 ```css
 /* spacious: button padding */
-padding: var(--space-sm) var(--space-lg); /* 12px 28px */
+padding: var(--space-sm) var(--space-lg); /* 16px 28px */
 ```
 
 ### Spacing in practice
@@ -115,19 +116,19 @@ Radius controls border rounding across your entire interface. Seven steps from p
 
 ### Radius preset values (in px)
 
-| Token  | `none` | `sm` | `default` | `lg` | `pill` |
-| ------ | ------ | ---- | --------- | ---- | ------ |
-| `none` | 0      | 0    | 0         | 0    | 0      |
-| `sm`   | 0      | 2    | 4         | 6    | 4      |
-| `md`   | 0      | 4    | 8         | 12   | 9999   |
-| `lg`   | 0      | 6    | 14        | 20   | 9999   |
-| `xl`   | 0      | 8    | 20        | 28   | 9999   |
-| `xxl`  | 0      | 10   | 28        | 36   | 9999   |
-| `pill` | 0      | 9999 | 9999      | 9999 | 9999   |
+| Token  | `sharp` | `default` | `rounded` | `pill` |
+| ------ | ------- | --------- | --------- | ------ |
+| `none` | 0       | 0         | 0         | 0      |
+| `sm`   | 2       | 6         | 10        | 14     |
+| `md`   | 4       | 10        | 14        | 18     |
+| `lg`   | 6       | 14        | 18        | 24     |
+| `xl`   | 8       | 20        | 24        | 30     |
+| `xxl`  | 10      | 24        | 30        | 40     |
+| `pill` | 0       | 999       | 999       | 999    |
 
-The `pill` preset sets most sizes to `9999px` — anything short enough becomes fully rounded. Only the `none` column is always 0.
+The `pill` preset sets most sizes to `999px` — anything short enough becomes fully rounded. Only the `sharp` column keeps `pill` at 0.
 
-### `none` — sharp edges, zero rounding
+### `sharp` — sharp edges, zero rounding
 
 Every element is rectangular. Reads as technical, precise, rigorous. Common in:
 - Terminal and CLI interfaces
@@ -141,13 +142,6 @@ Every element is rectangular. Reads as technical, precise, rigorous. Common in:
 .card { border-radius: var(--radius-lg); } /* → 0px */
 ```
 
-### `sm` — subtle rounding, mostly sharp
-
-Very light rounding on smaller elements. Large elements remain near-rectangular. Reads as professional with a slight softness. Common in:
-- Enterprise SaaS
-- Productivity software
-- B2B tools
-
 ### `default` — balanced, broadly appropriate
 
 The most versatile choice. Small elements (inputs, tags) get subtle rounding. Large elements (cards, modals) get noticeable but not exaggerated rounding. Common in:
@@ -156,13 +150,13 @@ The most versatile choice. Small elements (inputs, tags) get subtle rounding. La
 - Component libraries
 
 ```css
-.tag    { border-radius: var(--radius-sm); }  /* 4px */
-.btn    { border-radius: var(--radius-md); }  /* 8px */
+.tag    { border-radius: var(--radius-sm); }  /* 6px */
+.btn    { border-radius: var(--radius-md); }  /* 10px */
 .card   { border-radius: var(--radius-lg); }  /* 14px */
 .modal  { border-radius: var(--radius-xl); }  /* 20px */
 ```
 
-### `lg` — confident, modern rounding
+### `rounded` — confident modern rounding
 
 Noticeably rounded at all sizes. Reads as contemporary and friendly. Common in:
 - Consumer mobile apps
@@ -178,9 +172,9 @@ Buttons, inputs, and chips become stadium-shaped. Cards and modals have signific
 - Mobile-first experiences
 
 ```css
-.btn    { border-radius: var(--radius-md); }  /* 9999px → stadium */
-.tag    { border-radius: var(--radius-sm); }  /* 9999px → fully rounded */
-.card   { border-radius: var(--radius-xl); }  /* 9999px → large rounded */
+.btn    { border-radius: var(--radius-md); }  /* 999px → stadium */
+.tag    { border-radius: var(--radius-sm); }  /* 999px → fully rounded */
+.card   { border-radius: var(--radius-xl); }  /* 999px → large rounded */
 ```
 
 ### Mixing radius with element size
@@ -205,15 +199,15 @@ Font sizes follow a modular scale based on a ~1.25 ratio. Seven named steps from
 
 ### Font size preset values (in px)
 
-| Token | `small` | `default` | `large` |
-| ----- | ------- | --------- | ------- |
-| `xs`  | 10      | 11        | 12      |
-| `sm`  | 11      | 13        | 14      |
-| `md`  | 13      | 15        | 17      |
-| `lg`  | 15      | 18        | 21      |
-| `xl`  | 18      | 22        | 26      |
-| `xxl` | 22      | 28        | 34      |
-| `3xl` | 30      | 38        | 48      |
+| Token | `small` | `default` | `large` | `editorial` |
+| ----- | ------- | --------- | ------- | ----------- |
+| `xs`  | 10      | 12        | 14      | 14          |
+| `sm`  | 12      | 14        | 16      | 16          |
+| `md`  | 14      | 16        | 18      | 20          |
+| `lg`  | 16      | 18        | 24      | 28          |
+| `xl`  | 20      | 20        | 28      | 36          |
+| `xxl` | 26      | 24        | 36      | 48          |
+| `3xl` | 32      | 32        | 44      | 56          |
 
 ### `small` — compact, dense text
 
@@ -224,8 +218,8 @@ Appropriate for:
 - Mobile-first apps where screen real estate is limited
 
 ```css
-body { font-size: var(--text-md); } /* → 13px */
-h1   { font-size: var(--text-3xl); } /* → 30px */
+body { font-size: var(--text-md); } /* → 14px */
+h1   { font-size: var(--text-3xl); } /* → 32px */
 ```
 
 ### `default` — universal baseline
@@ -236,8 +230,8 @@ Readable for most users on most screens. Suitable for:
 - Marketing sites
 
 ```css
-body { font-size: var(--text-md); } /* → 15px */
-h1   { font-size: var(--text-3xl); } /* → 38px */
+body { font-size: var(--text-md); } /* → 16px */
+h1   { font-size: var(--text-3xl); } /* → 32px */
 ```
 
 ### `large` — accessible, editorial
@@ -249,8 +243,8 @@ Generous text sizes for:
 - TV/large-screen interfaces
 
 ```css
-body { font-size: var(--text-md); } /* → 17px */
-h1   { font-size: var(--text-3xl); } /* → 48px */
+body { font-size: var(--text-md); } /* → 18px */
+h1   { font-size: var(--text-3xl); } /* → 44px */
 ```
 
 ### A practical type scale
@@ -278,7 +272,7 @@ The real power of independent scales is the personality you create by combining 
 ### Corporate / enterprise B2B
 
 ```ts
-generateTheme({ preset: 'sapphire', spacing: 'compact', radius: 'none', fontSize: 'small' })
+generateTheme({ preset: 'sapphire', spacing: 'compact', radius: 'sharp', fontSize: 'small' })
 ```
 Sharp edges, dense information, small text. Reads as serious and data-focused.
 
@@ -305,7 +299,7 @@ Generous spacing, full rounding, large touch-friendly text. Every element feels 
 ### Editorial / content-first
 
 ```ts
-generateTheme({ preset: 'desert', spacing: 'spacious', radius: 'sm', fontSize: 'large' })
+generateTheme({ preset: 'desert', spacing: 'spacious', radius: 'rounded', fontSize: 'large' })
 ```
 Lots of breathing room, minimal rounding, generous text. The layout gets out of the way of the content.
 
@@ -314,7 +308,7 @@ Lots of breathing room, minimal rounding, generous text. The layout gets out of 
 ### Developer tool / terminal-adjacent
 
 ```ts
-generateTheme({ preset: 'midnight', spacing: 'compact', radius: 'none', fontSize: 'small' })
+generateTheme({ preset: 'midnight', spacing: 'compact', radius: 'sharp', fontSize: 'small' })
 ```
 Dark, dense, sharp. Everything signals precision and control.
 
@@ -323,7 +317,7 @@ Dark, dense, sharp. Everything signals precision and control.
 ### Startup landing page
 
 ```ts
-generateTheme({ preset: 'sunset', spacing: 'spacious', radius: 'lg', fontSize: 'default' })
+generateTheme({ preset: 'sunset', spacing: 'spacious', radius: 'rounded', fontSize: 'default' })
 ```
 Energetic color, generous layout, noticeable rounding. Designed to impress at first scroll.
 

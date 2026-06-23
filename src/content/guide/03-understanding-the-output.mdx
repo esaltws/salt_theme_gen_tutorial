@@ -37,7 +37,7 @@ interface GeneratedThemeMode {
   colors:          SemanticColors;      // 21 tokens
   states:          IntentStates;        // 32 tokens (8 intents × 4 states)
   surfaceElevation: SurfaceElevation;   // 4 tokens
-  spacing:         SpacingScale;        // 6 steps
+  spacing:         SpacingScale;        // 7 steps
   radius:          RadiusScale;         // 7 steps
   fontSizes:       FontSizeScale;       // 7 steps
   accessibility:   AccessibilityReport; // 18 WCAG checks
@@ -231,12 +231,13 @@ Values in pixels for `spacing: 'default'`:
 
 | Token | Value |
 | ----- | ----- |
+| `none` | 0px |
 | `xs` | 4px |
 | `sm` | 8px |
 | `md` | 12px |
 | `lg` | 16px |
 | `xl` | 24px |
-| `xxl` | 40px |
+| `xxl` | 32px |
 
 For `spacing: 'compact'` all values are tighter (roughly 75%). For `spacing: 'spacious'` they are looser (roughly 133%). The ratio between steps stays consistent across scales — the system stays proportional.
 
@@ -267,12 +268,12 @@ Values for `radius: 'default'`:
 | Token | Value |
 | ----- | ----- |
 | `none` | 0px |
-| `sm` | 4px |
-| `md` | 8px |
+| `sm` | 6px |
+| `md` | 10px |
 | `lg` | 14px |
 | `xl` | 20px |
-| `xxl` | 28px |
-| `pill` | 9999px |
+| `xxl` | 24px |
+| `pill` | 999px |
 
 ```ts
 // Change the whole personality of the UI in one line
@@ -299,13 +300,13 @@ Values for `fontSize: 'default'` (in px):
 
 | Token | Value |
 | ----- | ----- |
-| `xs` | 11px |
-| `sm` | 13px |
-| `md` | 15px |
+| `xs` | 12px |
+| `sm` | 14px |
+| `md` | 16px |
 | `lg` | 18px |
-| `xl` | 22px |
-| `xxl` | 28px |
-| `3xl` | 38px |
+| `xl` | 20px |
+| `xxl` | 24px |
+| `3xl` | 32px |
 
 The scale is not linear — it is a modular scale based on a ratio (~1.25), so steps feel visually even rather than numerically even.
 
@@ -325,35 +326,31 @@ The `AccessibilityReport` contains pre-computed contrast ratios for the most imp
 
 ```ts
 interface AccessibilityReport {
+  // Brand colors on background
+  primaryOnBackground:        { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  secondaryOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  tertiaryOnBackground:       { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  quaternaryOnBackground:     { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+
   // Text legibility
-  textOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  mutedOnBackground:     { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  textOnSurface:         { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-
-  // Brand on background
-  primaryOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  secondaryOnBackground: { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  tertiaryOnBackground:  { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-
-  // Foreground on intent (button text legibility)
-  onPrimaryOnPrimary:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  onSecondaryOnSecondary:{ ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  onTertiaryOnTertiary:  { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  textOnBackground:           { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  textOnSurface:              { ratio: number; level: 'AAA' | 'AA' | 'fail' };
 
   // Intent colors on background
-  dangerOnBackground:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  successOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  warningOnBackground:   { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  infoOnBackground:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  dangerOnBackground:         { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  successOnBackground:        { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  warningOnBackground:        { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  infoOnBackground:           { ratio: number; level: 'AAA' | 'AA' | 'fail' };
 
-  // On-intent foregrounds
-  onDangerOnDanger:      { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  onSuccessOnSuccess:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  onWarningOnWarning:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-  onInfoOnInfo:          { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
-
-  // Border visibility
-  borderOnBackground:    { ratio: number; level: 'AAA' | 'AA' | 'FAIL' };
+  // Foreground on intent (button text legibility)
+  onPrimaryOnPrimary:         { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  onSecondaryOnSecondary:     { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  onTertiaryOnTertiary:       { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  onQuaternaryOnQuaternary:   { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  onDangerOnDanger:           { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  onSuccessOnSuccess:         { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  onWarningOnWarning:         { ratio: number; level: 'AAA' | 'AA' | 'fail' };
+  onInfoOnInfo:               { ratio: number; level: 'AAA' | 'AA' | 'fail' };
 }
 ```
 
@@ -362,13 +359,13 @@ WCAG thresholds:
 - **AA** — ratio ≥ 4.5 for normal text, ≥ 3.0 for large text
 - **FAIL** — ratio < 4.5
 
-If a check would return `'FAIL'`, the library auto-corrects the color (adjusting OKLCH lightness until the ratio passes) and emits a `console.warn`. You still receive a usable token. You can read the report to see which, if any, required adjustment.
+If a check would return `'fail'`, the library auto-corrects the color (adjusting OKLCH lightness until the ratio passes) and emits a `console.warn`. You still receive a usable token. You can read the report to see which, if any, required adjustment.
 
 ```ts
 const report = theme.light.accessibility;
 
 const failures = Object.entries(report)
-  .filter(([, v]) => v.level === 'FAIL')
+  .filter(([, v]) => v.level === 'fail')
   .map(([k]) => k);
 
 // Almost always empty — the library corrects before you see failures
@@ -417,7 +414,7 @@ import type {
   RadiusScale,
   FontSizeScale,
   AccessibilityReport,
-  AccessibilityEntry,
+  ContrastEntry,
 } from 'salt-theme-gen';
 ```
 

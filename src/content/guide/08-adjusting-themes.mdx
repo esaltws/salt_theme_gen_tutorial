@@ -62,6 +62,15 @@ adjustTheme(base, {
 
 You only specify what you want to change. Everything else remains as generated.
 
+The `both` key applies overrides to both modes simultaneously, with mode-specific keys winning per-field:
+
+```ts
+adjustTheme(base, {
+  both: { spacing: { md: 14 } },  // applies to both light and dark
+  dark: { colors: { background: '#111' } },  // dark-only override
+})
+```
+
 ---
 
 ## Common adjustment patterns
@@ -81,14 +90,14 @@ const adjusted = adjustTheme(base, {
 });
 ```
 
-Note that adjusting `primary` does **not** automatically recompute `onPrimary`, `states.primary`, or the accessibility report. If you change `primary` significantly, adjust the related tokens too:
+`adjustTheme()` automatically regenerates derived tokens when base colors change — `onPrimary`, `states.primary`, and the accessibility report are all recomputed. You only need to manually override them when you want a value different from what auto-derivation produces:
 
 ```ts
 const adjusted = adjustTheme(base, {
   light: {
     colors: {
       primary: 'oklch(0.52 0.20 218)',
-      onPrimary: 'oklch(0.99 0.005 218)',  // keep it readable
+      onPrimary: 'oklch(0.99 0.005 218)',  // override auto-derived value
     },
     states: {
       primary: {
@@ -167,9 +176,9 @@ const adjusted = adjustTheme(base, {
 
 ## Adjustments and the accessibility report
 
-`adjustTheme()` does **not** rerun the WCAG contrast checks. The `accessibility` field in the adjusted theme reflects the values from the base generation — not the adjusted colors.
+`adjustTheme()` automatically regenerates the WCAG contrast checks when base colors change. The `accessibility` field in the adjusted theme reflects the adjusted colors — not the original base values.
 
-This is intentional: `adjustTheme()` is a targeted override tool, not a re-generation. If your overrides change contrast-critical colors, verify the adjusted pairs manually:
+If you want to verify specific color pairs beyond what the accessibility report covers, you can use `contrastRatio()` directly:
 
 ```ts
 import { contrastRatio } from 'salt-theme-gen';
@@ -185,10 +194,11 @@ const ratio = contrastRatio(
   adjusted.light.colors.primary,
   adjusted.light.colors.background,
 );
-console.log(ratio); // { ratio: 5.4, level: 'AA' }
+console.log(ratio); // 5.4  — contrastRatio() returns a plain number (1–21)
+console.log(ratio >= 4.5); // true — passes WCAG AA
 ```
 
-`contrastRatio()` accepts any two OKLCH, hex, or CSS color strings and returns the same `{ ratio, level }` shape as the accessibility report entries.
+`contrastRatio()` accepts any two hex or CSS color strings and returns the contrast ratio as a number (1–21). Use `ratio >= 4.5` to check WCAG AA, or `ratio >= 7` for AAA.
 
 ---
 
@@ -287,5 +297,5 @@ const forestTheme = buildTheme('forest');
 This pattern is useful for teams that have non-negotiable brand constraints (a specific border radius, a specific spacing value from a design system) but want to explore multiple color presets.
 
 <div class="callout callout-note">
-  <strong>Remember:</strong> <code>adjustTheme()</code> does not recompute derived tokens. If you override <code>primary</code>, also override <code>onPrimary</code> and the <code>states.primary</code> entries if the hue or lightness shift is significant. For small tweaks (1–2 OKLCH lightness units), the base-generated values usually remain correct.
+  <strong>Remember:</strong> <code>adjustTheme()</code> automatically regenerates derived tokens when base colors change. If you override <code>primary</code>, <code>onPrimary</code>, <code>states.primary</code>, and the accessibility report are recomputed automatically. You only need to manually override them when you want a specific value that differs from auto-derivation.
 </div>

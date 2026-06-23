@@ -59,7 +59,7 @@ The `theme` object has two keys: `light` and `dark`. Each is a `GeneratedThemeMo
 theme.light.colors          // 21 semantic color tokens
 theme.light.states          // 32 state colors (hover, pressed, focused, disabled)
 theme.light.surfaceElevation // 4 elevation layers
-theme.light.spacing         // 6 spacing steps
+theme.light.spacing         // 7 spacing steps (includes none:0)
 theme.light.radius          // 7 border radius steps
 theme.light.fontSizes       // 7 font size steps
 theme.light.accessibility   // 18 WCAG contrast checks
@@ -279,15 +279,15 @@ generateTheme({
 generateTheme({
   preset: 'ocean',
   spacing: 'spacious',
-  radius: 'none',
+  radius: 'sharp',
   fontSize: 'small',
 })
 ```
 
 Available options:
-- `spacing`: `'compact'` | `'default'` | `'spacious'`
-- `radius`: `'none'` | `'sm'` | `'default'` | `'lg'` | `'pill'`
-- `fontSize`: `'small'` | `'default'` | `'large'`
+- `spacing`: `'compact'` | `'default'` | `'relaxed'` | `'spacious'`
+- `radius`: `'sharp'` | `'default'` | `'rounded'` | `'pill'`
+- `fontSize`: `'small'` | `'default'` | `'large'` | `'editorial'`
 
 Chapter 5 covers the exact pixel values and visual effect of each combination.
 
@@ -304,22 +304,26 @@ const { accessibility } = theme.light;
 accessibility.textOnBackground
 // → { ratio: 14.1, level: 'AAA' }
 
-accessibility.mutedOnBackground
-// → { ratio: 4.6, level: 'AA' }
+accessibility.textOnSurface
+// → { ratio: 15.2, level: 'AAA' }
 
-// Brand colors
+// Brand colors on background
 accessibility.primaryOnBackground
 // → { ratio: 5.2, level: 'AA' }
 
-// Intent colors
+accessibility.secondaryOnBackground
+// → { ratio: 4.9, level: 'AA' }
+
+// On-color text (button text legibility)
+accessibility.onPrimaryOnPrimary
+// → { ratio: 5.1, level: 'AA' }
+
+// Intent colors on background
 accessibility.dangerOnBackground
 // → { ratio: 4.8, level: 'AA' }
-
-accessibility.successOnBackground
-// → { ratio: 4.5, level: 'AA' }
 ```
 
-`level` is `'AAA'`, `'AA'`, or `'FAIL'`. If any check returns `'FAIL'`, the library automatically adjusts the color and logs a warning — you still get a usable, compliant token.
+`level` is `'AAA'`, `'AA'`, or `'fail'`. If any check returns `'fail'`, the library automatically adjusts the color and logs a warning — you still get a usable, compliant token.
 
 You ship accessible colors by default, not by remembering to check.
 
