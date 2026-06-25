@@ -7,9 +7,39 @@ series: salt-theme-gen — Design Tokens for Every Framework
 cover_image:
 ---
 
-The flash of wrong theme on page load is one of the most annoying unsolved problems in web development. You store the user's preference in `localStorage`, but JavaScript runs after the HTML and CSS, so there's a brief moment where the page renders in the wrong theme.
+---
 
-This article shows the complete pattern: generate both themes, inject CSS variables, and prevent the flash with a synchronous inline script. The whole setup takes under 5 minutes.
+title: Dark Mode in 5 Minutes with salt-theme-gen
+published: true
+description: Generate light and dark design tokens from one generateTheme() call, expose them as CSS variables, and prevent theme flash with a tiny inline script.
+tags: css, darkmode, webdev, javascript
+series: salt-theme-gen — Design Tokens for Every Framework
+cover_image:
+------------
+
+Dark mode often looks simple until you try to ship it properly.
+
+You need:
+
+* light mode tokens
+* dark mode tokens
+* a toggle button
+* stored user preference
+* system preference fallback
+* no flash of the wrong theme on page load
+
+The flash is the annoying part.
+
+You store the user's preference in `localStorage`, but your app JavaScript usually runs after the browser has already started parsing HTML and CSS. For a moment, the page can render in the wrong theme.
+
+This article shows a simple pattern:
+
+1. Generate light and dark tokens with `salt-theme-gen`
+2. Convert them to CSS custom properties
+3. Toggle using `data-theme`
+4. Prevent theme flash with a tiny synchronous script
+
+No extra dependencies.
 
 ## Generate both themes in one call
 
@@ -17,74 +47,144 @@ This article shows the complete pattern: generate both themes, inject CSS variab
 import { generateTheme } from 'salt-theme-gen';
 
 const theme = generateTheme({ preset: 'ocean' });
-// theme.light — all light mode tokens
-// theme.dark  — all dark mode tokens
 ```
 
-`theme.light` and `theme.dark` are both `GeneratedThemeMode` objects — same shape, different values. No separate calls, no configuration.
-
-## Build the CSS
-
-Convert both modes to CSS custom properties:
+The generated theme includes both modes:
 
 ```ts
+theme.light;
+theme.dark;
+```
+
+Both modes have the same structure:
+
+```ts
+theme.light.colors;
+theme.light.states;
+theme.light.surfaceElevation;
+theme.light.spacing;
+theme.light.radius;
+theme.light.fontSizes;
+theme.light.accessibility;
+```
+
+And the same structure exists in dark mode:
+
+```ts
+theme.dark.colors;
+theme.dark.states;
+theme.dark.surfaceElevation;
+theme.dark.spacing;
+theme.dark.radius;
+theme.dark.fontSizes;
+theme.dark.accessibility;
+```
+
+That means your components can use the same token names in both modes.
+
+Only the values change.
+
+## Build the CSS variables
+
+First, convert a generated theme mode into CSS custom properties.
+
+```ts
+import { generateTheme } from 'salt-theme-gen';
+
+const theme = generateTheme({ preset: 'ocean' });
+
 function kebab(str: string): string {
   return str.replace(/([A-Z])/g, '-$1').toLowerCase();
 }
 
-function modeToVars(mode: GeneratedThemeMode): string {
+function modeToVars(mode: typeof theme.light): string {
   const lines: string[] = [];
 
-  for (const [k, v] of Object.entries(mode.colors))
-    lines.push(`  --color-${kebab(k)}: ${v};`);
-  for (const [k, v] of Object.entries(mode.surfaceElevation))
-    lines.push(`  --surface-${k}: ${v};`);
-  for (const [k, v] of Object.entries(mode.spacing))
-    lines.push(`  --space-${k}: ${v}px;`);
-  for (const [k, v] of Object.entries(mode.radius))
-    lines.push(`  --radius-${k}: ${v}px;`);
-  for (const [k, v] of Object.entries(mode.fontSizes))
-    lines.push(`  --text-${k}: ${v}px;`);
-  for (const [intent, states] of Object.entries(mode.states))
-    for (const [state, val] of Object.entries(states as Record<string, string>))
-      lines.push(`  --state-${intent}-${state}: ${val};`);
+  for (const [key, value] of Object.entries(mode.colors)) {
+    lines.push(`  --color-${kebab(key)}: ${value};`);
+  }
+
+  for (const [key, value] of Object.entries(mode.surfaceElevation)) {
+    lines.push(`  --surface-${key}: ${value};`);
+  }
+
+  for (const [key, value] of Object.entries(mode.spacing)) {
+    lines.push(`  --space-${key}: ${value}px;`);
+  }
+
+  for (const [key, value] of Object.entries(mode.radius)) {
+    lines.push(`  --radius-${key}: ${value}px;`);
+  }
+
+  for (const [key, value] of Object.entries(mode.fontSizes)) {
+    lines.push(`  --text-${key}: ${value}px;`);
+  }
+
+  for (const [intent, states] of Object.entries(mode.states)) {
+    for (const [state, value] of Object.entries(states)) {
+      lines.push(`  --state-${intent}-${state}: ${value};`);
+    }
+  }
 
   return lines.join('\n');
 }
+```
 
+Now generate the full CSS:
+
+```ts
 export const themeCSS = `
 :root {
+  color-scheme: light;
 ${modeToVars(theme.light)}
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
 ${modeToVars(theme.dark)}
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-${modeToVars(theme.dark).split('\n').map(l => '  ' + l).join('\n')}
+    color-scheme: dark;
+${modeToVars(theme.dark)
+  .split('\n')
+  .map(line => `  ${line}`)
+  .join('\n')}
   }
 }
 `;
 ```
 
-The three blocks in order:
-1. `:root {}` — light mode default, always applies
-2. `:root[data-theme="dark"] {}` — explicit dark, overrides when user toggled
-3. `@media (prefers-color-scheme: dark)` — OS dark preference as fallback when no stored choice
+This gives you three layers:
 
-## Inject it into `<head>`
+1. `:root` — light mode default
+2. `:root[data-theme="dark"]` — explicit dark mode
+3. `@media (prefers-color-scheme: dark)` — system dark mode fallback
 
-This goes in your HTML `<head>` before any component styles:
+The important part is this selector:
+
+```css
+:root:not([data-theme="light"])
+```
+
+It means:
+
+> Use system dark mode only when the user has not explicitly chosen light mode.
+
+## Inject the CSS into `<head>`
+
+Put the generated CSS in the document `<head>` before your component styles.
+
+Plain HTML:
 
 ```html
 <style>
-  /* paste themeCSS content here */
+  /* paste generated themeCSS here */
 </style>
 ```
 
-Or dynamically (React/Next.js):
+React or Next.js:
 
 ```tsx
 <style dangerouslySetInnerHTML={{ __html: themeCSS }} />
@@ -96,103 +196,230 @@ Astro:
 <Fragment set:html={`<style>${themeCSS}</style>`} />
 ```
 
-## The flash-prevention script
+Once this is loaded, your app can use CSS variables everywhere.
 
-This is the critical piece. It must run **synchronously** — no `defer`, no `async`, no `DOMContentLoaded`. Put it in `<head>` before the stylesheet:
+## Prevent the flash of wrong theme
+
+This is the critical part.
+
+The script must run before the CSS is applied.
+
+Put this in `<head>` before the theme `<style>`:
 
 ```html
 <script>
   (function () {
-    var stored = localStorage.getItem('theme');
-    if (stored) {
-      document.documentElement.setAttribute('data-theme', stored);
-    }
+    try {
+      var stored = localStorage.getItem('theme');
+
+      if (stored === 'light' || stored === 'dark') {
+        document.documentElement.setAttribute('data-theme', stored);
+      }
+    } catch (_) {}
   })();
 </script>
 ```
 
-**Why it works:** The browser processes `<head>` top to bottom before rendering. This tiny script runs, reads the stored preference, sets `data-theme` on `<html>`, and then the CSS (which comes after) applies the correct `:root[data-theme="dark"]` rules. By the time the first pixel is painted, the right theme is already active.
+Do not add:
 
-## Toggle function
+```html
+defer
+async
+DOMContentLoaded
+```
+
+The script should run immediately.
+
+Why?
+
+The browser reads the document from top to bottom. If this script runs before the stylesheet, it can set `data-theme="dark"` on `<html>` before the first paint.
+
+So when the CSS variables are applied, the correct theme is already active.
+
+## Add a toggle function
 
 ```ts
 function toggleTheme() {
   const html = document.documentElement;
   const current = html.getAttribute('data-theme');
+
   const next = current === 'dark' ? 'light' : 'dark';
+
   html.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
 }
 ```
 
-Wire it to a button:
+Attach it to a button:
 
 ```ts
-document.getElementById('theme-toggle')
-  .addEventListener('click', toggleTheme);
+document
+  .getElementById('theme-toggle')
+  ?.addEventListener('click', toggleTheme);
 ```
 
-## Use tokens in CSS
+Example HTML:
 
-```css
-body {
-  background-color: var(--color-background);
-  color:            var(--color-text);
-  font-size:        var(--text-md);
-}
-
-.card {
-  background:    var(--surface-card);
-  border:        1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding:       var(--space-xl);
-}
-
-.btn-primary {
-  background: var(--color-primary);
-  color:      var(--color-on-primary);
-}
-
-.btn-primary:hover {
-  background: var(--state-primary-hover);
-}
+```html
+<button id="theme-toggle" type="button">
+  Toggle theme
+</button>
 ```
 
-When `data-theme="dark"` is set on `<html>`, all CSS variables update instantly — no JavaScript re-rendering, no class toggling on individual components.
+## Reset to system preference
 
-## OS preference + stored preference
+Sometimes you want a third option:
 
-The three-rule CSS handles both cases:
-- User has never toggled: `@media (prefers-color-scheme: dark)` matches their OS setting
-- User toggled manually: `[data-theme="dark"]` or `[data-theme="light"]` overrides the media query
-- User toggles back to match OS: clear `localStorage` and remove the attribute
+* light
+* dark
+* system
+
+To return to system preference, remove the attribute and clear storage:
 
 ```ts
-function resetToSystem() {
+function resetToSystemTheme() {
   document.documentElement.removeAttribute('data-theme');
   localStorage.removeItem('theme');
 }
 ```
 
+Now the media query controls the theme again:
+
+```css
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* dark variables */
+  }
+}
+```
+
+## Use tokens in CSS
+
+Now your components can use theme variables without caring about the active mode.
+
+```css
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-md);
+}
+
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.btn-primary:hover {
+  background: var(--state-primary-hover);
+}
+
+.btn-primary:active {
+  background: var(--state-primary-pressed);
+}
+
+.btn-primary:disabled {
+  background: var(--state-primary-disabled);
+}
+```
+
+When `data-theme="dark"` is set on `<html>`, all variables update instantly.
+
+No JavaScript re-rendering.
+
+No class changes on every component.
+
+No duplicate dark-mode CSS for each button, card, input, or modal.
+
+## Why this works well with design tokens
+
+The clean part is that the component CSS does not change between modes.
+
+This button:
+
+```css
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+```
+
+works in light mode and dark mode.
+
+The variable values change.
+
+The component contract stays the same.
+
+That is the main benefit of using generated design tokens instead of manually writing separate color rules for every component.
+
 ## Complete setup summary
 
+```text
+1. Install salt-theme-gen
+2. Generate a theme with generateTheme()
+3. Convert theme.light and theme.dark to CSS variables
+4. Add a synchronous theme script in <head>
+5. Inject the CSS variables after the script
+6. Toggle data-theme on <html>
+7. Use CSS variables in your components
 ```
-1. npm install salt-theme-gen
-2. generateTheme({ preset: 'ocean' })
-3. Convert to CSS with modeToVars()
-4. Inject into <head>
-5. Add synchronous <script> before the <style> for flash prevention
-6. Wire toggleTheme() to a button
+
+Install:
+
+```bash
+npm install salt-theme-gen
 ```
 
-Total time: under 5 minutes. Total JavaScript for the dark mode toggle: 3 lines.
+Generate:
 
-Previous article: [Introducing salt-theme-gen — Generate a Complete Design System from One Color](https://dev.to/hasansarwer/introducing-salt-theme-gen-generate-a-complete-design-system-from-one-color-2a9j)
+```ts
+import { generateTheme } from 'salt-theme-gen';
 
-Full documentation: [learn.esalt.net/salt-theme-gen](https://learn.esalt.net/salt-theme-gen/)
+const theme = generateTheme({ preset: 'ocean' });
+```
+
+Use:
+
+```css
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+```
+
+## The bottom line
+
+Dark mode should not require a second design system.
+
+With `salt-theme-gen`, light and dark mode are generated together from the same source:
+
+```ts
+theme.light;
+theme.dark;
+```
+
+The browser handles switching through CSS variables.
+
+A tiny inline script prevents the wrong theme from flashing on load.
+
+And your components keep reading the same semantic tokens in both modes.
+
+
+
+Full documentation:
+
+https://learn.esalt.net/salt-theme-gen/
+
+
 
 ---
 
 *Part of the **salt-theme-gen — Design Tokens for Every Framework** series · Article 2 of 24*
-
-[← 01. Introducing salt-theme-gen](./01-introducing-salt-theme-gen.md) &nbsp;·&nbsp; [03. WCAG Accessibility →](./03-accessibility-built-in.md)
